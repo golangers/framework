@@ -20,3 +20,20 @@ _cgo_export.*
 _testmain.go
 
 *.exe
+
+# For MacOS:
+.DS_Store
+
+# For vim:
+*.swp
+
+#For ctags
+tag
+tags
+TAG
+TAGS
+
+=======
+# For golang:
+pkg
+bin
