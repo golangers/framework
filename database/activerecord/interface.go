@@ -2,7 +2,7 @@ package activerecord
 
 import (
 	"database/sql"
-	"golanger.com/utils"
+	"golanger.com/framework/utils"
 )
 
 type DataBase interface {

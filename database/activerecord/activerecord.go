@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"golanger.com/utils"
+	"golanger.com/framework/utils"
 	"reflect"
 	"strconv"
 	"strings"
