@@ -47,15 +47,14 @@ Golanger is a lightweight framework for writing web applications in Go.
  * <a href="http://pinterest.golanger.com" target="_blank">图片分享(pinterest)</a>
  * <a href="http://play.golanger.com" target="_blank">Golang Play</a>
  * <a href="http://todo.golanger.com" target="_blank">Todo List</a>
- * <a href="http://website-admin.golanger.com" target="_blank">权限管理(website-admin)</a>
-
+ * <a href="http://website-admin.golanger.com" target="_blank">权限管理(website-admin)</a>. 
    * User: testgolanger
    * Password: testgolanger 
 
 
 ## 开发者
- * Li Wei <lee#leetaifook.com>
- * Jiang Bian <borderj#gmail.com>
+ * Li Wei <lee@leetaifook.com>
+ * Jiang Bian <borderj@gmail.com>
 
 ## 联系方式
 ### WebSite
