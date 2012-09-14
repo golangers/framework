@@ -18,64 +18,52 @@ Golanger is a lightweight framework for writing web applications in Go.
  * Session
  * Plugins
 
+## Quick Start
+ * 首先要确保你已经安装了Go，如果没有请参考  
+ <a href="http://golang.org/doc/install" target="_blank">Go Installation</a>
+ * 设置GOPATH...
+ * 安装Golanger
+```
+go get -u golanger.com/framework
+```
+ * 如果想了解Golanger可以先从<a href="https://github.com/golangers/samples" target="_blank">Samples</a>开始
 
 ### 约定的命名规则：
-
-    Model: 存放在models目录中
-    Controller: 存放在controllers目录中
-    View: 存放在views目录中
-    静态文件放在static目录中
+ * Model: 存放在models目录中
+ * Controller: 存放在controllers目录中
+ * View: 存放在views目录中
+ * 静态文件放在static目录中
 
 ## Wishlist
-
  * Validation -- 帮助验证管理
  * Hot Compile -- 代码修改后自动编译项目，你只需要刷新的你浏览器
  * Debug -- 快速定位问题
 
+## Samples Online
+ * <a href="http://chatroom.golanger.com" target="_blank">chatroom.golanger.com</a>
+ * <a href="http://guestbook.golanger.com" target="_blank">guestbook.golanger.com</a>
+ * <a href="http://helloworld.golanger.com" target="_blank">helloworld.golanger.com</a>
+ * <a href="http://pinterest.golanger.com" target="_blank">pinterest.golanger.com</a>
+ * <a href="http://play.golanger.com" target="_blank">play.golanger.com</a>
+ * <a href="http://todo.golanger.com" target="_blank">todo.golanger.com</a>
+ * <a href="http://website-admin.golanger.com" target="_blank">website-admin.golanger.com</a>
+     User: testgolanger
+     Password: testgolanger 
 
-## 主要开发者
-```
-Li Wei <lee#leetaifook.com>
-Jiang Bian <borderj#gmail.com>
-```
-
+## 开发者
+ * Li Wei <lee#leetaifook.com>
+ * Jiang Bian <borderj#gmail.com>
 
 ## 联系方式
-
-
 ### WebSite
-
-```
-http://wWw.GoLangEr.Com
-```
-
-### 微博
-
-```
-新浪：http://weibo.com/golanger
-```
-
-### IM
-
-```
-QQ : 20660991
-QQ群 : 29994666
-Gtalk : lee#leetaifook.com 
-```
-
-### Email
-
-```
-lee#leetaifook.com
-borderj#gmail.com
-```
+ * <a href="http://golanger.com/framework" target="_blank">Golanger Web Framework</a>
+ * <a href="http://golanger.com" target="_blank">Golanger</a>
+ * <a href="http://weibo.com/golanger" target="_blank">新浪微博</a>
+ * QQ群: 29994666
 
 ### 邮件列表
-
-```
-https://groups.google.com/group/golang-china/
-golang-china@googlegroups.com
-```
+ * <a href="https://groups.google.com/group/golanger" target="_blank">Golanger邮件列表</a>
+ * <golanger@googlegroups.com>
 
 Open Source License
 ------------------------------------------------------------------------------------------
