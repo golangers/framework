@@ -23,7 +23,9 @@ Golanger is a lightweight framework for writing web applications in Go.
  * 设置GOPATH...
  * 安装Golanger
 
+ ```
    go get -u golanger.com/framework
+```
 
  * 如果想了解Golanger可以先从<a href="https://github.com/golangers/samples" target="_blank">Samples</a>开始
 
@@ -41,14 +43,14 @@ Golanger is a lightweight framework for writing web applications in Go.
 ## Samples Online
  * <a href="http://chatroom.golanger.com" target="_blank">聊天室(chatroom)</a>
  * <a href="http://guestbook.golanger.com" target="_blank">记事本(guestbook)</a>
- * <a href="http://helloworld.golanger.com" target="_blank">(helloworld)</a>
+ * <a href="http://helloworld.golanger.com" target="_blank">Helloworld</a>
  * <a href="http://pinterest.golanger.com" target="_blank">图片分享(pinterest)</a>
  * <a href="http://play.golanger.com" target="_blank">Golang Play</a>
  * <a href="http://todo.golanger.com" target="_blank">Todo List</a>
  * <a href="http://website-admin.golanger.com" target="_blank">权限管理(website-admin)</a>
 
-   User: testgolanger
-   Password: testgolanger 
+   * User: testgolanger
+   * Password: testgolanger 
 
 
 ## 开发者
