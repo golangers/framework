@@ -22,7 +22,9 @@ Golanger is a lightweight framework for writing web applications in Go.
  * 首先要确保你已经安装了Go，如果没有请参考<a href="http://golang.org/doc/install" target="_blank">Go Installation</a>
  * 设置GOPATH...
  * 安装Golanger
-   > go get -u golanger.com/framework
+
+   go get -u golanger.com/framework
+
  * 如果想了解Golanger可以先从<a href="https://github.com/golangers/samples" target="_blank">Samples</a>开始
 
 ### 约定的命名规则：
@@ -44,8 +46,10 @@ Golanger is a lightweight framework for writing web applications in Go.
  * <a href="http://play.golanger.com" target="_blank">Golang Play</a>
  * <a href="http://todo.golanger.com" target="_blank">Todo List</a>
  * <a href="http://website-admin.golanger.com" target="_blank">权限管理(website-admin)</a>
-   > User: testgolanger
-   > Password: testgolanger 
+
+   User: testgolanger
+   Password: testgolanger 
+
 
 ## 开发者
  * Li Wei <lee#leetaifook.com>
