@@ -51,6 +51,8 @@ Golanger is a lightweight framework for writing web applications in Go.
    * User: testgolanger
    * Password: testgolanger 
 
+## 性能测试
+ * [Golanger Using Apache Bench for Simple Load Testing](https://github.com/golangers/framework/wiki/Golanger-Using-Apache-Bench-for-Simple-Load-Testing)
 
 ## 开发者
  * Li Wei <lee@leetaifook.com>
