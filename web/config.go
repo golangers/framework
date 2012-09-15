@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
 	AutoGenerateHtmlCycleTime int64                  `json:"AutoGenerateHtmlCycleTime"`
