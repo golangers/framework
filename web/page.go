@@ -33,7 +33,6 @@ type Page struct {
 	Session             *session.SessionManager
 	currentPath         string
 	currentFileName     string
-	supportStatic       bool
 }
 
 type PageParam struct {
@@ -307,7 +306,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	if ppc.supportStatic {
+	if ppc.Config.SupportTemplate {
 		ppc.setStaticDocument()
 		ppc.routeTemplate(w, r)
 	}
@@ -484,7 +483,6 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Page) HandleFavicon() {
-	p.supportStatic = true
 	http.HandleFunc(p.site.Root+"favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		staticPath := p.Config.StaticDirectory + p.Config.ThemeDirectory + "favicon.ico"
 		http.ServeFile(w, r, staticPath)
@@ -492,7 +490,6 @@ func (p *Page) HandleFavicon() {
 }
 
 func (p *Page) HandleStatic() {
-	p.supportStatic = true
 	http.HandleFunc(p.Document.Static, func(w http.ResponseWriter, r *http.Request) {
 		staticPath := p.Config.StaticDirectory + r.URL.Path[len(p.Document.Static):]
 		http.ServeFile(w, r, staticPath)
