@@ -19,7 +19,7 @@ type SessionManager struct {
 	timerDuration time.Duration
 }
 
-func New(cookieName string, expires int, timerDuration time.Duration) *SessionManager {
+func New(cookieName string, expires int, timerDuration string) *SessionManager {
 	if cookieName == "" {
 		cookieName = "GoLangerSession"
 	}
@@ -28,15 +28,19 @@ func New(cookieName string, expires int, timerDuration time.Duration) *SessionMa
 		expires = 3600
 	}
 
-	if timerDuration <= 0 {
-		timerDuration, _ = time.ParseDuration("24h")
+	var dTimerDuration time.Duration
+
+	if td, terr := time.ParseDuration(timerDuration); terr == nil {
+		dTimerDuration = td
+	} else {
+		dTimerDuration, _ = time.ParseDuration("24h")
 	}
 
 	s := &SessionManager{
 		CookieName:    cookieName,
 		sessions:      map[string][2]map[string]interface{}{},
 		expires:       expires,
-		timerDuration: timerDuration,
+		timerDuration: dTimerDuration,
 	}
 
 	time.AfterFunc(s.timerDuration, func() { s.GC() })

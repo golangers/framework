@@ -39,7 +39,7 @@ type PageParam struct {
 	MaxFormSize   int64
 	CookieName    string
 	Expires       int
-	TimerDuration time.Duration
+	TimerDuration string
 }
 
 func NewPage(param PageParam) Page {
