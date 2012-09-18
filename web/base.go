@@ -19,11 +19,7 @@ func (b *base) Init(w http.ResponseWriter, r *http.Request) *base {
 }
 
 func (b *base) AddHeader(k, v string) {
-	if _, ok := b.header[k]; ok {
-		b.header[k] = append(b.header[k], v)
-	} else {
-		b.header[k] = []string{v}
-	}
+	b.header[k] = append(b.header[k], v)
 }
 
 func (b *base) DelHeader(k string) {
