@@ -259,22 +259,36 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		}
 	}
 
+
 	if rm, ok := tpc.MethodByName(ppc.CurrentAction); ok {
-		if ppc.Document.Close == false {
-			mt := rm.Type
-			switch mt.NumIn() {
-			case 2:
-				if mt.In(1) == rvr.Type() {
-					vpc.MethodByName(ppc.CurrentAction).Call([]reflect.Value{rvr})
-				} else {
-					vpc.MethodByName(ppc.CurrentAction).Call([]reflect.Value{rvw})
-				}
-			case 3:
-				vpc.MethodByName(ppc.CurrentAction).Call([]reflect.Value{rvw, rvr})
-			default:
-				vpc.MethodByName(ppc.CurrentAction).Call([]reflect.Value{})
-			}
+		ctl := p.CurrentController[:len(p.CurrentController)-1]
+		ca := p.ControllerAction
+		bfok,afok := true,true
+		if ca["Before"+ctl][ppc.CurrentAction] == "deny" || 
+			(ca["Before"+ctl]["All_"] == "deny" && ca["Before"+ctl][ppc.CurrentAction] != "allow"){
+			 bfok = false
 		}
+		if ca["After"+ctl][ppc.CurrentAction] == "deny" || 
+			(ca["After"+ctl]["All_"] == "deny" && ca["After"+ctl][ppc.CurrentAction] != "allow"){
+			 afok = false
+		}
+		
+		if bam, ok := tpc.MethodByName("BeforeAction"); ok && bfok{
+			excuteActionFunc(bam ,vpc,"BeforeAction", rvr , rvw ,ppc)
+		}
+		if btam, ok := tpc.MethodByName("Before"+ppc.CurrentAction); ok {
+			excuteActionFunc(btam ,vpc,"Before"+ppc.CurrentAction, rvr , rvw ,ppc)
+		}
+		
+		excuteActionFunc(rm ,vpc,ppc.CurrentAction , rvr , rvw ,ppc)
+		
+		if aam, ok := tpc.MethodByName("AfterAction"); ok && afok{
+			excuteActionFunc(aam ,vpc,"AfterAction", rvr , rvw ,ppc)
+		}
+		if atam, ok := tpc.MethodByName("After"+ppc.CurrentAction); ok {
+			excuteActionFunc(atam ,vpc,"After"+ppc.CurrentAction, rvr , rvw ,ppc)
+		}
+		
 	} else {
 		if !strings.Contains(tpc.String(), "Page404") {
 			notFountRV := reflect.ValueOf(ppc.NotFoundtController)
@@ -589,6 +603,7 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 	}
 
 	http.SetCookie(w, pCookie)
+	
 
 	if expires > 0 {
 		p.COOKIE[pCookie.Name] = pCookie.Value
@@ -596,3 +611,23 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 		delete(p.COOKIE, pCookie.Name)
 	}
 }
+
+func excuteActionFunc(rm reflect.Method,vpc reflect.Value,action string, rvr reflect.Value, rvw reflect.Value ,ppc *Page){
+
+	if ppc.Document.Close == false {
+		mt := rm.Type
+		switch mt.NumIn() {
+		case 2:
+			if mt.In(1) == rvr.Type() {
+				vpc.MethodByName(action).Call([]reflect.Value{rvr})
+			} else {
+				vpc.MethodByName(action).Call([]reflect.Value{rvw})
+			}
+		case 3:
+			vpc.MethodByName(action).Call([]reflect.Value{rvw, rvr})
+		default:
+			vpc.MethodByName(action).Call([]reflect.Value{})
+		}
+	}
+}
+
