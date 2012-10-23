@@ -237,6 +237,12 @@ func (p *Page) callMethod(tpc reflect.Type, vpc reflect.Value, action string, rv
 	return arv
 }
 
+func (p *Page) filterMethod(methodName string) bool {
+	b := false
+	b = !strings.HasPrefix(methodName, "Before_") && !strings.HasPrefix(methodName, "After_") && !strings.HasPrefix(methodName, "Filter_")
+	return b
+}
+
 func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Request) {
 	pageOriController := p.GetController(p.currentPath)
 	rv := reflect.ValueOf(pageOriController)
@@ -265,44 +271,46 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		ppc.callMethod(tpc, vpc, "Init", rvr, rvw)
 	}
 
-	if _, ok := tpc.MethodByName(ppc.CurrentAction); ok {
-		if abarv := ppc.callMethod(tpc, vpc, "BeforeAction", rvr, rvw); len(abarv) == 1 {
+	if _, ok := tpc.MethodByName(ppc.CurrentAction); ok && ppc.filterMethod(ppc.CurrentAction) {
+		if abarv := ppc.callMethod(tpc, vpc, "Before_", rvr, rvw); len(abarv) == 1 {
 			barv := abarv[0]
-			mba := barv.Interface().([]map[string]string)
-			for _, filter := range mba {
-				if method, ok := filter["_FILTER"]; ok {
-					filterType, found := filter[ppc.CurrentAction]
-					if !found && filter["_ALL"] == "allow" {
-						ppc.callMethod(tpc, vpc, method, rvr, rvw)
-					} else if found && filterType == "allow" {
-						ppc.callMethod(tpc, vpc, method, rvr, rvw)
+			if mba, tok := barv.Interface().([]map[string]string); tok {
+				for _, filter := range mba {
+					if method, ok := filter["_FILTER"]; ok {
+						filterType, found := filter[ppc.CurrentAction]
+						if !found && filter["_ALL"] == "allow" {
+							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
+						} else if found && filterType == "allow" {
+							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
+						}
 					}
 				}
 			}
 		}
 
-		if aaarv := ppc.callMethod(tpc, vpc, "AfterAction", rvr, rvw); len(aaarv) == 1 {
-			aarv := aaarv[0]
-			maa := aarv.Interface().([]map[string]string)
-			for _, filter := range maa {
-				if method, ok := filter["_FILTER"]; ok {
-					filterType, found := filter[ppc.CurrentAction]
-					if !found && filter["_ALL"] == "allow" {
-						ppc.callMethod(tpc, vpc, method, rvr, rvw)
-					} else if found && filterType == "allow" {
-						ppc.callMethod(tpc, vpc, method, rvr, rvw)
-					}
-				}
-			}
-		}
-
-		ppc.callMethod(tpc, vpc, "Before"+ppc.CurrentAction, rvr, rvw)
+		ppc.callMethod(tpc, vpc, "Before_"+ppc.CurrentAction, rvr, rvw)
 
 		if ppc.Document.Close == false {
-			ppc.callMethod(vpc, ppc.CurrentAction, rvr, rvw)
+			ppc.callMethod(tpc, vpc, ppc.CurrentAction, rvr, rvw)
 		}
 
-		ppc.callMethod(tpc, vpc, "After"+ppc.CurrentAction, rvr, rvw)
+		ppc.callMethod(tpc, vpc, "After_"+ppc.CurrentAction, rvr, rvw)
+
+		if aaarv := ppc.callMethod(tpc, vpc, "After_", rvr, rvw); len(aaarv) == 1 {
+			aarv := aaarv[0]
+			if maa, tok := aarv.Interface().([]map[string]string); tok {
+				for _, filter := range maa {
+					if method, ok := filter["_FILTER"]; ok {
+						filterType, found := filter[ppc.CurrentAction]
+						if !found && filter["_ALL"] == "allow" {
+							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
+						} else if found && filterType == "allow" {
+							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
+						}
+					}
+				}
+			}
+		}
 	} else {
 		if !strings.Contains(tpc.String(), "Page404") {
 			notFountRV := reflect.ValueOf(ppc.NotFoundtController)
