@@ -34,7 +34,7 @@ func (s *site) AddTemplateFunc(name string, i interface{}) {
 	if !ok {
 		s.templateFunc[name] = i
 	} else {
-		fmt.Println("func:" + name + " be added,do not reepeat to add")
+		fmt.Println("func:" + name + " be added,do not repeat to add")
 	}
 }
 

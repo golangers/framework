@@ -216,6 +216,27 @@ func (p *Page) setCurrentInfo(path string) {
 	p.CurrentAction = strings.Replace(strings.Title(strings.Replace(p.currentFileName[:len(p.currentFileName)-len(filepath.Ext(p.currentFileName))], "_", " ", -1)), " ", "", -1)
 }
 
+func (p *Page) callMethod(tpc reflect.Type, vpc reflect.Value, action string, rvr reflect.Value, rvw reflect.Value) []reflect.Value {
+	arv := []reflect.Value{}
+	if rm, ok := tpc.MethodByName(action); ok {
+		mt := rm.Type
+		switch mt.NumIn() {
+		case 2:
+			if mt.In(1) == rvr.Type() {
+				arv = vpc.MethodByName(action).Call([]reflect.Value{rvr})
+			} else {
+				arv = vpc.MethodByName(action).Call([]reflect.Value{rvw})
+			}
+		case 3:
+			arv = vpc.MethodByName(action).Call([]reflect.Value{rvw, rvr})
+		default:
+			arv = vpc.MethodByName(action).Call([]reflect.Value{})
+		}
+	}
+
+	return arv
+}
+
 func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Request) {
 	pageOriController := p.GetController(p.currentPath)
 	rv := reflect.ValueOf(pageOriController)
@@ -241,54 +262,47 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 	tpc := vpc.Type()
 
 	if ppc.CurrentAction != "Init" {
-		if rm, ok := tpc.MethodByName("Init"); ok {
-			mt := rm.Type
-			switch mt.NumIn() {
-			case 2:
-				if mt.In(1) == rvr.Type() {
-					vpc.MethodByName("Init").Call([]reflect.Value{rvr})
-
-				} else {
-					vpc.MethodByName("Init").Call([]reflect.Value{rvw})
-				}
-			case 3:
-				vpc.MethodByName("Init").Call([]reflect.Value{rvw, rvr})
-			default:
-				vpc.MethodByName("Init").Call([]reflect.Value{})
-			}
-		}
+		ppc.callMethod(tpc, vpc, "Init", rvr, rvw)
 	}
 
+	if _, ok := tpc.MethodByName(ppc.CurrentAction); ok {
+		if abarv := ppc.callMethod(tpc, vpc, "BeforeAction", rvr, rvw); len(abarv) == 1 {
+			barv := abarv[0]
+			mba := barv.Interface().([]map[string]string)
+			for _, filter := range mba {
+				if method, ok := filter["_FILTER"]; ok {
+					filterType, found := filter[ppc.CurrentAction]
+					if !found && filter["_ALL"] == "allow" {
+						ppc.callMethod(tpc, vpc, method, rvr, rvw)
+					} else if found && filterType == "allow" {
+						ppc.callMethod(tpc, vpc, method, rvr, rvw)
+					}
+				}
+			}
+		}
 
-	if rm, ok := tpc.MethodByName(ppc.CurrentAction); ok {
-		ctl := p.CurrentController[:len(p.CurrentController)-1]
-		ca := p.ControllerAction
-		bfok,afok := true,true
-		if ca["Before"+ctl][ppc.CurrentAction] == "deny" || 
-			(ca["Before"+ctl]["All_"] == "deny" && ca["Before"+ctl][ppc.CurrentAction] != "allow"){
-			 bfok = false
+		if aaarv := ppc.callMethod(tpc, vpc, "AfterAction", rvr, rvw); len(aaarv) == 1 {
+			aarv := aaarv[0]
+			maa := aarv.Interface().([]map[string]string)
+			for _, filter := range maa {
+				if method, ok := filter["_FILTER"]; ok {
+					filterType, found := filter[ppc.CurrentAction]
+					if !found && filter["_ALL"] == "allow" {
+						ppc.callMethod(tpc, vpc, method, rvr, rvw)
+					} else if found && filterType == "allow" {
+						ppc.callMethod(tpc, vpc, method, rvr, rvw)
+					}
+				}
+			}
 		}
-		if ca["After"+ctl][ppc.CurrentAction] == "deny" || 
-			(ca["After"+ctl]["All_"] == "deny" && ca["After"+ctl][ppc.CurrentAction] != "allow"){
-			 afok = false
+
+		ppc.callMethod(tpc, vpc, "Before"+ppc.CurrentAction, rvr, rvw)
+
+		if ppc.Document.Close == false {
+			ppc.callMethod(vpc, ppc.CurrentAction, rvr, rvw)
 		}
-		
-		if bam, ok := tpc.MethodByName("BeforeAction"); ok && bfok{
-			excuteActionFunc(bam ,vpc,"BeforeAction", rvr , rvw ,ppc)
-		}
-		if btam, ok := tpc.MethodByName("Before"+ppc.CurrentAction); ok {
-			excuteActionFunc(btam ,vpc,"Before"+ppc.CurrentAction, rvr , rvw ,ppc)
-		}
-		
-		excuteActionFunc(rm ,vpc,ppc.CurrentAction , rvr , rvw ,ppc)
-		
-		if aam, ok := tpc.MethodByName("AfterAction"); ok && afok{
-			excuteActionFunc(aam ,vpc,"AfterAction", rvr , rvw ,ppc)
-		}
-		if atam, ok := tpc.MethodByName("After"+ppc.CurrentAction); ok {
-			excuteActionFunc(atam ,vpc,"After"+ppc.CurrentAction, rvr , rvw ,ppc)
-		}
-		
+
+		ppc.callMethod(tpc, vpc, "After"+ppc.CurrentAction, rvr, rvw)
 	} else {
 		if !strings.Contains(tpc.String(), "Page404") {
 			notFountRV := reflect.ValueOf(ppc.NotFoundtController)
@@ -301,22 +315,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 
 			ppc = vpnpc.Addr().Interface().(*Page)
 			tnpc := vnpc.Type()
-
-			if rm, ok := tnpc.MethodByName("Init"); ok {
-				mt := rm.Type
-				switch mt.NumIn() {
-				case 2:
-					if mt.In(1) == rvr.Type() {
-						vnpc.MethodByName("Init").Call([]reflect.Value{rvr})
-					} else {
-						vnpc.MethodByName("Init").Call([]reflect.Value{rvw})
-					}
-				case 3:
-					vnpc.MethodByName("Init").Call([]reflect.Value{rvw, rvr})
-				default:
-					vnpc.MethodByName("Init").Call([]reflect.Value{})
-				}
-			}
+			ppc.callMethod(tnpc, vnpc, "Init", rvr, rvw)
 		}
 	}
 
@@ -603,7 +602,6 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 	}
 
 	http.SetCookie(w, pCookie)
-	
 
 	if expires > 0 {
 		p.COOKIE[pCookie.Name] = pCookie.Value
@@ -611,23 +609,3 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 		delete(p.COOKIE, pCookie.Name)
 	}
 }
-
-func excuteActionFunc(rm reflect.Method,vpc reflect.Value,action string, rvr reflect.Value, rvw reflect.Value ,ppc *Page){
-
-	if ppc.Document.Close == false {
-		mt := rm.Type
-		switch mt.NumIn() {
-		case 2:
-			if mt.In(1) == rvr.Type() {
-				vpc.MethodByName(action).Call([]reflect.Value{rvr})
-			} else {
-				vpc.MethodByName(action).Call([]reflect.Value{rvw})
-			}
-		case 3:
-			vpc.MethodByName(action).Call([]reflect.Value{rvw, rvr})
-		default:
-			vpc.MethodByName(action).Call([]reflect.Value{})
-		}
-	}
-}
-

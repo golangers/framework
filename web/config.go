@@ -34,8 +34,6 @@ type Config struct {
 	M                         map[string]interface{} `json:"Custom"`
 	configPath                string
 	configLastModTime         int64
-	ControllerAction          map[string]map[string]string      `json:"ControllerAction"`
-	
 }
 
 func NewConfig() Config {
@@ -57,7 +55,6 @@ func NewConfig() Config {
 		SiteRoot:                "/",
 		Environment:             map[string]string{},
 		Database:                map[string]string{},
-		ControllerAction:		 map[string]map[string]string{},
 	}
 }
 
