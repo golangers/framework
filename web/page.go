@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"golanger.com/framework/i18n"
 	"golanger.com/framework/session"
 	"log"
 	"net/http"
@@ -31,6 +32,7 @@ type Page struct {
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
 	Session             *session.SessionManager
+	I18n                *i18n.I18nManager
 	currentPath         string
 	currentFileName     string
 }
@@ -38,6 +40,7 @@ type Page struct {
 type PageParam struct {
 	MaxFormSize   int64
 	CookieName    string
+	I18nName      string
 	Expires       int
 	TimerDuration string
 }
@@ -67,6 +70,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
+		// I18n:          i18n.New(param.I18nName, Config.DefaultLocalePath, Config.DefaultLanguage),
 	}
 }
 
@@ -81,6 +85,9 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.COOKIE = p.site.base.getHttpCookie(r)
 	if p.site.supportSession {
 		p.SESSION = p.Session.Get(w, r)
+	}
+	if p.site.supportI18n {
+		// TODO Support I18n
 	}
 
 	if p.site.base.header != nil || len(p.site.base.header) > 0 {
@@ -146,6 +153,9 @@ func (p *Page) reset(update bool) {
 		if p.site.supportSession != p.Config.SupportSession {
 			p.site.supportSession = p.Config.SupportSession
 		}
+		if p.site.supportI18n != p.Config.SupportI18n {
+			p.site.supportI18n = p.Config.SupportI18n
+		}
 
 		if p.Document.Theme != p.Config.Theme {
 			p.Document.Theme = p.Config.Theme
@@ -164,6 +174,7 @@ func (p *Page) reset(update bool) {
 		}
 	} else {
 		p.site.supportSession = p.Config.SupportSession
+		p.site.supportI18n = p.Config.SupportI18n
 		p.Document.Theme = p.Config.Theme
 		p.site.Root = p.Config.SiteRoot
 		p.Document.Static = p.site.Root + p.Config.StaticDirectory[2:]

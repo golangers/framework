@@ -1,4 +1,4 @@
-package main
+package i18n
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 
 type I18nManager struct {
 	I18nName        string
-	localPath       string
+	localePath      string
 	defaultLanguage string
 	mutex           sync.Mutex
 	languages       map[string]map[string]string
@@ -30,7 +30,7 @@ func New(name, path, lang string) *I18nManager {
 
 	i := &I18nManager{
 		I18nName:        name,
-		localPath:       path,
+		localePath:      path,
 		defaultLanguage: lang,
 		languages:       map[string]map[string]string{},
 	}
@@ -51,7 +51,7 @@ func (i *I18nManager) loadLanguageFile(lang string) (err error) {
 		lang = i.defaultLanguage
 	}
 
-	file := fmt.Sprintf("%s/%s.json", i.localPath, lang)
+	file := fmt.Sprintf("%s/%s.json", i.localePath, lang)
 	data, err := loadFile(file)
 	if err != nil {
 		return errors.New("Error: Loading Language File " + file)
@@ -83,4 +83,3 @@ func (i *I18nManager) Get(lang, key string) string {
 	}
 	return ""
 }
-
