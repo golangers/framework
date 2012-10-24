@@ -49,7 +49,7 @@ func NewPage(param PageParam) Page {
 	if param.MaxFormSize <= 0 {
 		param.MaxFormSize = 2 << 20 // 2MB => 2的20次方 乘以 2 =》 2 * 1024 * 1024
 	}
-
+	config := NewConfig()
 	return Page{
 		site: &site{
 			base: &base{
@@ -61,7 +61,7 @@ func NewPage(param PageParam) Page {
 		},
 		Controller: map[string]interface{}{},
 
-		Config: NewConfig(),
+		Config: config,
 		Document: Document{
 			Css:  map[string]string{},
 			Js:   map[string]string{},
@@ -70,7 +70,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
-		// I18n:          i18n.New(param.I18nName, Config.DefaultLocalePath, Config.DefaultLanguage),
+		I18n:          i18n.New(param.I18nName, config.DefaultLocalePath, config.DefaultLanguage),
 	}
 }
 
