@@ -12,6 +12,7 @@ type I18nManager struct {
 	I18nName        string
 	localePath      string
 	defaultLanguage string
+	rmutex          sync.RWMutex
 	mutex           sync.Mutex
 	languages       map[string]map[string]string
 }
@@ -63,19 +64,19 @@ func (i *I18nManager) loadLanguageFile(lang string) (err error) {
 }
 
 func (i *I18nManager) Get(lang, key string) string {
-	i.mutex.Lock()
+	i.rmutex.RLock()
 	if _, ok := i.languages[lang]; !ok {
-		i.mutex.Unlock()
+		i.rmutex.RUnlock()
 		// Load The Language File
 		err := i.loadLanguageFile(lang)
 		if err != nil {
 			return ""
 		}
 	}
-	i.mutex.Unlock()
+	i.rmutex.RUnlock()
 
-	i.mutex.Lock()
-	defer i.mutex.Unlock()
+	i.rmutex.RLock()
+	defer i.rmutex.RUnlock()
 	if msgs, ok := i.languages[lang]; ok {
 		if value, ok := msgs[key]; ok {
 			return value
