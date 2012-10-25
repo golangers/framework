@@ -72,8 +72,9 @@ func (i *I18nManager) Get(lang, key string) string {
 		if err != nil {
 			return ""
 		}
-	}
-	i.rmutex.RUnlock()
+	} else {
+        i.rmutex.RUnlock()
+    }
 
 	i.rmutex.RLock()
 	defer i.rmutex.RUnlock()
