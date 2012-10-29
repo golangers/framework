@@ -16,6 +16,7 @@ type templateCache struct {
 type site struct {
 	*base
 	supportSession bool
+	supportI18n    bool
 	templateFunc   template.FuncMap
 	templateCache  map[string]templateCache
 	globalTemplate *template.Template

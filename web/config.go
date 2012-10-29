@@ -10,6 +10,9 @@ import (
 type Config struct {
 	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
+	SupportI18n               bool                   `json:"SupportI18n"`
+	DefaultLanguage           string                 `json:"DefaultLanguage"`
+	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
 	AutoGenerateHtmlCycleTime int64                  `json:"AutoGenerateHtmlCycleTime"`
 	AutoJumpToHtml            bool                   `json:"AutoJumpToHtml"`
@@ -41,6 +44,8 @@ func NewConfig() Config {
 		TemplateDirectory:       "./view/",
 		TemporaryDirectory:      "./tmp/",
 		StaticDirectory:         "./static/",
+		DefaultLanguage:         "zh-CN",
+		DefaultLocalePath:       "./locale",
 		ThemeDirectory:          "theme/",
 		Theme:                   "default",
 		StaticCssDirectory:      "css/",
