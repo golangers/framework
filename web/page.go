@@ -556,7 +556,7 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 		return
 	}
 
-	const LEN = 5
+	const LEN = 7
 	var cookie = [LEN]interface{}{}
 
 	for k, v := range args {
