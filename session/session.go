@@ -63,7 +63,7 @@ func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[stri
 	}
 
 	s.mutex.Lock()
-	sessionSign = s.new(rw, req)
+	sessionSign = s.new(rw)
 	s.mutex.Unlock()
 
 	return s.sessions[sessionSign][1]
@@ -75,7 +75,7 @@ func (s *SessionManager) Len() int64 {
 	return int64(len(s.sessions))
 }
 
-func (s *SessionManager) new(rw http.ResponseWriter, req *http.Request) string {
+func (s *SessionManager) new(rw http.ResponseWriter) string {
 	timeNano := time.Now().UnixNano()
 	sessionSign := s.sessionSign()
 	s.sessions[sessionSign] = [2]map[string]interface{}{
