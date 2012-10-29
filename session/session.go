@@ -63,7 +63,7 @@ func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[stri
 	}
 
 	s.mutex.Lock()
-	sessionSign = s.new(rw)
+	sessionSign = s.new(rw, req)
 	s.mutex.Unlock()
 
 	return s.sessions[sessionSign][1]
@@ -75,7 +75,7 @@ func (s *SessionManager) Len() int64 {
 	return int64(len(s.sessions))
 }
 
-func (s *SessionManager) new(rw http.ResponseWriter) string {
+func (s *SessionManager) new(rw http.ResponseWriter, req *http.Request) string {
 	timeNano := time.Now().UnixNano()
 	sessionSign := s.sessionSign()
 	s.sessions[sessionSign] = [2]map[string]interface{}{
@@ -86,9 +86,10 @@ func (s *SessionManager) new(rw http.ResponseWriter) string {
 	}
 
 	bCookie := &http.Cookie{
-		Name:  s.CookieName,
-		Value: url.QueryEscape(sessionSign),
-		Path:  "/",
+		Name:     s.CookieName,
+		Value:    url.QueryEscape(sessionSign),
+		Path:     "/",
+		HttpOnly: true,
 	}
 
 	http.SetCookie(rw, bCookie)

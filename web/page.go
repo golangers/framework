@@ -548,6 +548,8 @@ cookie[1] => value string
 cookie[2] => expires string
 cookie[3] => path string
 cookie[4] => domain string
+cookie[5] => httpOnly bool
+cookie[6] => secure bool
 */
 func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 	if len(args) < 2 {
@@ -566,11 +568,13 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 	}
 
 	var (
-		name    string
-		value   string
-		expires int
-		path    string
-		domain  string
+		name     string
+		value    string
+		expires  int
+		path     string
+		domain   string
+		httpOnly bool
+		secure   bool
 	)
 
 	if v, ok := cookie[0].(string); ok {
@@ -597,11 +601,21 @@ func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
 		domain = v
 	}
 
+	if v, ok := cookie[5].(bool); ok {
+		httpOnly = v
+	}
+
+	if v, ok := cookie[6].(bool); ok {
+		secure = v
+	}
+
 	pCookie := &http.Cookie{
-		Name:   name,
-		Value:  url.QueryEscape(value),
-		Path:   path,
-		Domain: domain,
+		Name:     name,
+		Value:    url.QueryEscape(value),
+		Path:     path,
+		Domain:   domain,
+		HttpOnly: httpOnly,
+		Secure:   secure,
 	}
 
 	if expires > 0 {
