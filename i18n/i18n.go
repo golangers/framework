@@ -3,8 +3,8 @@ package i18n
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
+	"strings"
 	"sync"
 )
 
@@ -23,10 +23,10 @@ func New(name, path, lang string) *I18nManager {
 	}
 
 	if path == "" {
-		path = "./"
+		path = "./locale/"
 	}
 	if lang == "" {
-		lang = "zh-CN"
+		lang = "zh-cn"
 	}
 
 	i := &I18nManager{
@@ -47,41 +47,81 @@ func loadFile(filepath string) (data []byte, err error) {
 	return
 }
 
-func (i *I18nManager) loadLanguageFile(lang string) (err error) {
+func (i *I18nManager) loadLanguageFile(lang string) error {
 	if lang == "" {
 		lang = i.defaultLanguage
 	}
 
-	file := fmt.Sprintf("%s/%s.json", i.localePath, lang)
+	i.rmutex.RLock()
+	_, ok := i.languages[i.defaultLanguage]
+	if ok {
+		i.rmutex.RUnlock()
+		return nil
+	}
+
+	i.rmutex.RUnlock()
+
+	file := i.localePath + lang
 	data, err := loadFile(file)
 	if err != nil {
 		return errors.New("Error: Loading Language File " + file)
 	}
 	i.mutex.Lock()
-	defer i.mutex.Unlock()
 	err = json.Unmarshal(data, &i.languages)
-	return
+	i.mutex.Unlock()
+
+	return err
 }
 
-func (i *I18nManager) Get(lang, key string) string {
-	i.rmutex.RLock()
-	if _, ok := i.languages[lang]; !ok {
-		i.rmutex.RUnlock()
-		// Load The Language File
-		err := i.loadLanguageFile(lang)
-		if err != nil {
-			return ""
-		}
+func (i *I18nManager) Lang(l string) map[string]string {
+	if l == "" {
+		l = i.defaultLanguage
 	} else {
-        i.rmutex.RUnlock()
-    }
+		l = strings.ToLower(l)
+	}
 
 	i.rmutex.RLock()
 	defer i.rmutex.RUnlock()
-	if msgs, ok := i.languages[lang]; ok {
-		if value, ok := msgs[key]; ok {
-			return value
+	msgs, found := i.languages[l]
+	if !found {
+		// Load The Language File
+		err := i.loadLanguageFile(l)
+		if err != nil {
+			return map[string]string{}
 		}
+		msgs = i.languages[l]
 	}
-	return ""
+
+	return msgs
+}
+
+func (i *I18nManager) Get(lang, key string) string {
+	if lang == "" {
+		lang = i.defaultLanguage
+	} else {
+		lang = strings.ToLower(lang)
+	}
+
+	targetLang := ""
+	i.rmutex.RLock()
+	msgs, found := i.languages[lang]
+	if !found {
+		// Load The Language File
+		err := i.loadLanguageFile(lang)
+		if err != nil {
+			i.rmutex.RUnlock()
+			return key
+		}
+
+		msgs = i.languages[lang]
+	}
+
+	targetLang, ok := msgs[key]
+	i.rmutex.RUnlock()
+
+	if !ok {
+		targetLang = key
+	}
+
+	return targetLang
 }

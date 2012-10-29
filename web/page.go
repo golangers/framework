@@ -31,6 +31,7 @@ type Page struct {
 	POST                map[string]string
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
+	LANG                map[string]string
 	Session             *session.SessionManager
 	I18n                *i18n.I18nManager
 	currentPath         string
@@ -49,7 +50,7 @@ func NewPage(param PageParam) Page {
 	if param.MaxFormSize <= 0 {
 		param.MaxFormSize = 2 << 20 // 2MB => 2的20次方 乘以 2 =》 2 * 1024 * 1024
 	}
-	config := NewConfig()
+
 	return Page{
 		site: &site{
 			base: &base{
@@ -61,7 +62,7 @@ func NewPage(param PageParam) Page {
 		},
 		Controller: map[string]interface{}{},
 
-		Config: config,
+		Config: NewConfig(),
 		Document: Document{
 			Css:  map[string]string{},
 			Js:   map[string]string{},
@@ -70,7 +71,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
-		I18n:          i18n.New(param.I18nName, config.DefaultLocalePath, config.DefaultLanguage),
+		I18n:          i18n.New(param.I18nName, "", ""),
 	}
 }
 
@@ -86,8 +87,16 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	if p.site.supportSession {
 		p.SESSION = p.Session.Get(w, r)
 	}
+
 	if p.site.supportI18n {
-		// TODO Support I18n
+		p.LANG = func() map[string]string {
+			l := strings.TrimSpace(r.Header.Get("Accept-Language"))
+			if i := strings.Index(l, ","); i != -1 {
+				l = l[:i]
+			}
+
+			return p.I18n.Lang(l)
+		}()
 	}
 
 	if p.site.base.header != nil || len(p.site.base.header) > 0 {
@@ -427,6 +436,7 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 					"S":        p.SESSION,
 					"C":        p.COOKIE,
 					"D":        p.Document,
+					"L":        p.LANG,
 					"Config":   p.Config.M,
 					"Template": p.Template,
 				}
