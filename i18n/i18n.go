@@ -53,7 +53,7 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 	}
 
 	i.rmutex.RLock()
-	_, ok := i.languages[i.defaultLanguage]
+	_, ok := i.languages[lang]
 	if ok {
 		i.rmutex.RUnlock()
 		return nil
@@ -64,21 +64,26 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 	file := i.localePath + lang
 	data, err := loadFile(file)
 	if err != nil {
-		return errors.New("Error: Loading Language File " + file)
+		i.rmutex.RLock()
+		_, ok := i.languages[i.defaultLanguage]
+		i.rmutex.RUnlock()
+
+		if ok {
+			return nil
+		} else {
+			return errors.New("Error: Loading Language File " + file)
+		}
 	}
+
 	i.mutex.Lock()
-	err = json.Unmarshal(data, &i.languages)
+	err = json.Unmarshal(data, &i.languages[lang])
 	i.mutex.Unlock()
 
 	return err
 }
 
 func (i *I18nManager) Lang(l string) map[string]string {
-	if l == "" {
-		l = i.defaultLanguage
-	} else {
-		l = strings.ToLower(l)
-	}
+	l = strings.ToLower(l)
 
 	i.rmutex.RLock()
 	defer i.rmutex.RUnlock()
@@ -87,8 +92,9 @@ func (i *I18nManager) Lang(l string) map[string]string {
 		// Load The Language File
 		err := i.loadLanguageFile(l)
 		if err != nil {
-			return map[string]string{}
+			l = i.defaultLanguage
 		}
+
 		msgs = i.languages[l]
 	}
 
@@ -96,11 +102,7 @@ func (i *I18nManager) Lang(l string) map[string]string {
 }
 
 func (i *I18nManager) Get(lang, key string) string {
-	if lang == "" {
-		lang = i.defaultLanguage
-	} else {
-		lang = strings.ToLower(lang)
-	}
+	l = strings.ToLower(l)
 
 	targetLang := ""
 	i.rmutex.RLock()
@@ -109,8 +111,14 @@ func (i *I18nManager) Get(lang, key string) string {
 		// Load The Language File
 		err := i.loadLanguageFile(lang)
 		if err != nil {
+			var ok bool
+			targetLang, ok = i.languages[i.defaultLanguage][key]
 			i.rmutex.RUnlock()
-			return key
+			if ok {
+				return targetLang
+			} else {
+				return key
+			}
 		}
 
 		msgs = i.languages[lang]
