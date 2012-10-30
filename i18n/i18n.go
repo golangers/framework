@@ -75,8 +75,12 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 		}
 	}
 
+	m := map[string]string{}
+	err = json.Unmarshal(data, &m)
 	i.mutex.Lock()
-	err = json.Unmarshal(data, &i.languages[lang])
+	if err == nil {
+		i.languages[lang] = m
+	}
 	i.mutex.Unlock()
 
 	return err
@@ -102,7 +106,7 @@ func (i *I18nManager) Lang(l string) map[string]string {
 }
 
 func (i *I18nManager) Get(lang, key string) string {
-	l = strings.ToLower(l)
+	lang = strings.ToLower(lang)
 
 	targetLang := ""
 	i.rmutex.RLock()
