@@ -263,6 +263,61 @@ func (p *Page) filterMethod(methodName string) bool {
 	return b
 }
 
+func (p *Page) filterDoMethod(tpc reflect.Type, vpc reflect.Value, action string, rvr reflect.Value, rvw reflect.Value) {
+	if aarv := p.callMethod(tpc, vpc, action, rvr, rvw); len(aarv) == 1 {
+		if ma, tok := aarv[0].Interface().([]map[string]string); tok {
+			for _, filter := range ma {
+				doFilter := false
+				doMethod := false
+				doParam := false
+				method, mok := filter["_FILTER"]
+
+				if mok {
+					filterType, found := filter[p.CurrentAction]
+					if !found && filter["_ALL"] == "allow" {
+						doFilter = true
+					} else if found && filterType == "allow" {
+						doFilter = true
+					}
+				}
+
+				if doFilter {
+					if rm, ok := filter["_METHOD"]; !ok {
+						doMethod = true
+					} else {
+						reqMethods := strings.Split(rm, ",")
+						for _, v := range reqMethods {
+							r := rvr.Interface().(*http.Request)
+							if r.Method == strings.ToUpper(v) {
+								doMethod = true
+								break
+							}
+						}
+					}
+
+					if rmp, ok := filter["_PARAM"]; !ok {
+						doParam = true
+					} else {
+						reqParams := strings.Split(rmp, ",")
+						for _, v := range reqParams {
+							_, vgok := p.GET[v]
+							_, vpok := p.POST[v]
+							if vgok || vpok {
+								doParam = true
+								break
+							}
+						}
+					}
+
+					if doMethod && doParam {
+						p.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
+					}
+				}
+			}
+		}
+	}
+}
+
 func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Request) {
 	pageOriController := p.GetController(p.currentPath)
 	rv := reflect.ValueOf(pageOriController)
@@ -292,22 +347,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 	}
 
 	if _, ok := tpc.MethodByName(ppc.CurrentAction); ok && ppc.filterMethod(ppc.CurrentAction) {
-		if abarv := ppc.callMethod(tpc, vpc, "Before_", rvr, rvw); len(abarv) == 1 {
-			barv := abarv[0]
-			if mba, tok := barv.Interface().([]map[string]string); tok {
-				for _, filter := range mba {
-					if method, ok := filter["_FILTER"]; ok {
-						filterType, found := filter[ppc.CurrentAction]
-						if !found && filter["_ALL"] == "allow" {
-							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
-						} else if found && filterType == "allow" {
-							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
-						}
-					}
-				}
-			}
-		}
-
+		ppc.filterDoMethod(tpc, vpc, "Before_", rvr, rvw)
 		ppc.callMethod(tpc, vpc, "Before_"+ppc.CurrentAction, rvr, rvw)
 
 		if ppc.Document.Close == false {
@@ -315,22 +355,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		}
 
 		ppc.callMethod(tpc, vpc, "After_"+ppc.CurrentAction, rvr, rvw)
-
-		if aaarv := ppc.callMethod(tpc, vpc, "After_", rvr, rvw); len(aaarv) == 1 {
-			aarv := aaarv[0]
-			if maa, tok := aarv.Interface().([]map[string]string); tok {
-				for _, filter := range maa {
-					if method, ok := filter["_FILTER"]; ok {
-						filterType, found := filter[ppc.CurrentAction]
-						if !found && filter["_ALL"] == "allow" {
-							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
-						} else if found && filterType == "allow" {
-							ppc.callMethod(tpc, vpc, "Filter_"+method, rvr, rvw)
-						}
-					}
-				}
-			}
-		}
+		ppc.filterDoMethod(tpc, vpc, "After_", rvr, rvw)
 	} else {
 		if !strings.Contains(tpc.String(), "Page404") {
 			notFountRV := reflect.ValueOf(ppc.NotFoundtController)
