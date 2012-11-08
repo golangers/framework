@@ -31,6 +31,7 @@ type Page struct {
 	POST                map[string]string
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
+	ONCE_SESSION        interface{}
 	LANG                map[string]string
 	Session             *session.SessionManager
 	I18n                *i18n.I18nManager
@@ -86,6 +87,11 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.COOKIE = p.site.base.getHttpCookie(r)
 	if p.site.supportSession {
 		p.SESSION = p.Session.Get(w, r)
+		var ok bool
+		p.ONCE_SESSION, ok = p.SESSION["__ONCE"]
+		if ok {
+			delete(p.SESSION, "__ONCE")
+		}
 	}
 
 	if p.site.supportI18n {
@@ -458,10 +464,11 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 				templateVar := map[string]interface{}{
 					"G":        p.GET,
 					"P":        p.POST,
-					"S":        p.SESSION,
 					"C":        p.COOKIE,
 					"D":        p.Document,
 					"L":        p.LANG,
+					"S":        p.SESSION,
+					"O_S":      p.ONCE_SESSION,
 					"Config":   p.Config.M,
 					"Template": p.Template,
 				}
