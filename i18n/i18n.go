@@ -56,14 +56,16 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 	}
 
 	file := i.localePath + lang
-	dataFi, _ := os.Stat(file)
+	dataFi, err := os.Stat(file)
 
 	i.rmutex.RLock()
-	if dataFi.ModTime().Unix() <= i.lastModTime[lang] {
-		_, ok := i.languages[lang]
-		if ok {
-			i.rmutex.RUnlock()
-			return nil
+	if err == nil {
+		if dataFi.ModTime().Unix() <= i.lastModTime[lang] {
+			_, ok := i.languages[lang]
+			if ok {
+				i.rmutex.RUnlock()
+				return nil
+			}
 		}
 	}
 
@@ -101,11 +103,13 @@ func (i *I18nManager) Lang(l string) map[string]string {
 	defer i.rmutex.RUnlock()
 
 	file := i.localePath + l
-	dataFi, _ := os.Stat(file)
-	if dataFi.ModTime().Unix() > i.lastModTime[l] {
-		err := i.loadLanguageFile(l)
-		if err != nil {
-			l = i.defaultLanguage
+	dataFi, err := os.Stat(file)
+	if err == nil {
+		if dataFi.ModTime().Unix() > i.lastModTime[l] {
+			err := i.loadLanguageFile(l)
+			if err != nil {
+				l = i.defaultLanguage
+			}
 		}
 	}
 
@@ -130,11 +134,13 @@ func (i *I18nManager) Get(lang, key string) string {
 	i.rmutex.RLock()
 
 	file := i.localePath + lang
-	dataFi, _ := os.Stat(file)
-	if dataFi.ModTime().Unix() > i.lastModTime[lang] {
-		err := i.loadLanguageFile(lang)
-		if err != nil {
-			lang = i.defaultLanguage
+	dataFi, err := os.Stat(file)
+	if err == nil {
+		if dataFi.ModTime().Unix() > i.lastModTime[lang] {
+			err := i.loadLanguageFile(lang)
+			if err != nil {
+				lang = i.defaultLanguage
+			}
 		}
 	}
 
