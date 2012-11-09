@@ -71,6 +71,7 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 
 	i.rmutex.RUnlock()
 
+	// Load The Language File
 	data, err := loadFile(file)
 	if err != nil {
 		i.rmutex.RLock()
@@ -80,7 +81,15 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 		if ok {
 			return nil
 		} else {
-			return errors.New("Error: Loading Language File " + file)
+			file = i.localePath + i.defaultLanguage
+			dataFi, err = os.Stat(file)
+			if err != nil {
+				return errors.New("Error: Loading Language File " + file)
+			}
+			data, err = loadFile(file)
+			if err != nil {
+				return errors.New("Error: Loading Language File " + file)
+			}
 		}
 	}
 
