@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 )
@@ -15,6 +16,7 @@ type I18nManager struct {
 	rmutex          sync.RWMutex
 	mutex           sync.Mutex
 	languages       map[string]map[string]string
+	lastModTime     map[string]int64
 }
 
 func New(name, path, lang string) *I18nManager {
@@ -34,6 +36,7 @@ func New(name, path, lang string) *I18nManager {
 		localePath:      path,
 		defaultLanguage: lang,
 		languages:       map[string]map[string]string{},
+		lastModTime:     map[string]int64{},
 	}
 
 	return i
@@ -52,16 +55,20 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 		lang = i.defaultLanguage
 	}
 
+	file := i.localePath + lang
+	dataFi, _ := os.Stat(file)
+
 	i.rmutex.RLock()
-	_, ok := i.languages[lang]
-	if ok {
-		i.rmutex.RUnlock()
-		return nil
+	if dataFi.ModTime().Unix() <= i.lastModTime[lang] {
+		_, ok := i.languages[lang]
+		if ok {
+			i.rmutex.RUnlock()
+			return nil
+		}
 	}
 
 	i.rmutex.RUnlock()
 
-	file := i.localePath + lang
 	data, err := loadFile(file)
 	if err != nil {
 		i.rmutex.RLock()
@@ -77,9 +84,11 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 
 	m := map[string]string{}
 	err = json.Unmarshal(data, &m)
+
 	i.mutex.Lock()
 	if err == nil {
 		i.languages[lang] = m
+		i.lastModTime[lang] = dataFi.ModTime().Unix()
 	}
 	i.mutex.Unlock()
 
@@ -88,9 +97,18 @@ func (i *I18nManager) loadLanguageFile(lang string) error {
 
 func (i *I18nManager) Lang(l string) map[string]string {
 	l = strings.ToLower(l)
-
 	i.rmutex.RLock()
 	defer i.rmutex.RUnlock()
+
+	file := i.localePath + l
+	dataFi, _ := os.Stat(file)
+	if dataFi.ModTime().Unix() > i.lastModTime[l] {
+		err := i.loadLanguageFile(l)
+		if err != nil {
+			l = i.defaultLanguage
+		}
+	}
+
 	msgs, found := i.languages[l]
 	if !found {
 		// Load The Language File
@@ -110,6 +128,16 @@ func (i *I18nManager) Get(lang, key string) string {
 
 	targetLang := ""
 	i.rmutex.RLock()
+
+	file := i.localePath + lang
+	dataFi, _ := os.Stat(file)
+	if dataFi.ModTime().Unix() > i.lastModTime[lang] {
+		err := i.loadLanguageFile(lang)
+		if err != nil {
+			lang = i.defaultLanguage
+		}
+	}
+
 	msgs, found := i.languages[lang]
 	if !found {
 		// Load The Language File
