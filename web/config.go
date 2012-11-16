@@ -20,6 +20,7 @@ type Config struct {
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
 	AutoGenerateHtmlCycleTime int64                  `json:"AutoGenerateHtmlCycleTime"`
 	AutoLoadStaticHtml        bool                   `json:"AutoLoadStaticHtml"`
+	LoadStaticHtmlWithLogic   bool                   `json:"LoadStaticHtmlWithLogic"`
 	ChangeSiteRoot            bool                   `json:"ChangeSiteRoot"`
 	AutoJumpToHtml            bool                   `json:"AutoJumpToHtml"`
 	AssetsDirectory           string                 `json:"AssetsDirectory"`

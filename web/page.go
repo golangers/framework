@@ -339,8 +339,53 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 
 	vppc := vapc.FieldByName("Page")
 	ppc := vppc.Addr().Interface().(*Page)
-	tpc := vpc.Type()
 
+	if !ppc.Config.LoadStaticHtmlWithLogic && ppc.Config.AutoGenerateHtml {
+		tplFi, tplErr := os.Stat(ppc.Config.TemplateDirectory + ppc.Config.ThemeDirectory + ppc.Template)
+		if tplErr == nil {
+
+			ppc.site.base.rmutex.RLock()
+			tmplCache := ppc.GetTemplateCache(ppc.Template)
+			ppc.site.base.rmutex.RUnlock()
+			if tplFi.ModTime().Unix() > tmplCache.ModTime {
+				goto DO_ROUTER
+			}
+		}
+
+		htmlFile := ""
+		ppc.site.base.rmutex.RLock()
+		assetsHtmlDir := ppc.Config.AssetsDirectory + ppc.Config.HtmlDirectory
+		if strings.HasPrefix(ppc.Template, ppc.Config.IndexDirectory) {
+			htmlFile = assetsHtmlDir + strings.Replace(ppc.Template, ppc.Config.IndexDirectory, "", 1)
+		} else {
+			htmlFile = assetsHtmlDir + ppc.Template
+		}
+
+		if r.URL.RawQuery != "" {
+			htmlFile += "?" + r.URL.RawQuery
+		}
+
+		ppc.site.base.rmutex.RUnlock()
+		if htmlFi, htmlErr := os.Stat(htmlFile); htmlErr == nil {
+			if ppc.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
+				goto DO_ROUTER
+			}
+
+			htmlContent, err := ioutil.ReadFile(htmlFile)
+			if err == nil {
+				w.Write(htmlContent)
+				return
+			} else {
+				goto DO_ROUTER
+			}
+		} else {
+			goto DO_ROUTER
+		}
+
+	}
+
+DO_ROUTER:
+	tpc := vpc.Type()
 	if ppc.CurrentAction != "Init" {
 		ppc.callMethod(tpc, vpc, "Init", rvr, rvw)
 	}
@@ -488,63 +533,29 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 						os.MkdirAll(htmlDir, 0777)
 					}
 
-					var doWrite bool
-					if p.Config.AutoGenerateHtml {
-						var htmlFi os.FileInfo
-						var htmlErr error
-						if p.Config.AutoGenerateHtmlCycleTime <= 0 {
-							doWrite = true
+					htmlFi, htmlErr := os.Stat(htmlFile)
+					if p.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
+						if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err == nil {
+							if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
+								templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
+							}
+
+							pageTemplate.Execute(file, templateVar)
 						} else {
-							htmlFi, htmlErr = os.Stat(htmlFile)
-							if htmlErr != nil {
-								doWrite = true
-							} else {
-								switch {
-								case tplFi.ModTime().Unix() >= htmlFi.ModTime().Unix():
-									doWrite = true
-								case tplFi.ModTime().Unix() >= htmlFi.ModTime().Unix():
-									doWrite = true
-								case time.Now().Unix()-htmlFi.ModTime().Unix() >= p.Config.AutoGenerateHtmlCycleTime:
-									doWrite = true
-								default:
-									globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory)
-									if err == nil {
-										if globalTplFi.ModTime().Unix() >= htmlFi.ModTime().Unix() {
-											doWrite = true
-										}
-									}
-								}
-							}
+							log.Println(err)
 						}
+					}
 
-						if doWrite {
-							if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err == nil {
-								if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
-									templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
-								}
-
-								pageTemplate.Execute(file, templateVar)
-							} else {
-								log.Println(err)
-							}
-						}
-
-						if p.Config.AutoJumpToHtml {
-							p.site.base.rmutex.RLock()
-							http.Redirect(w, r, p.site.Root+htmlFile[2:], http.StatusFound)
-							p.site.base.rmutex.RUnlock()
-						} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
-							htmlContent, err := ioutil.ReadFile(htmlFile)
-							if err == nil {
-								w.Write(htmlContent)
-							} else {
-								log.Println(err)
-							}
+					if p.Config.AutoJumpToHtml {
+						p.site.base.rmutex.RLock()
+						http.Redirect(w, r, p.site.Root+htmlFile[2:], http.StatusFound)
+						p.site.base.rmutex.RUnlock()
+					} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
+						htmlContent, err := ioutil.ReadFile(htmlFile)
+						if err == nil {
+							w.Write(htmlContent)
 						} else {
-							err := pageTemplate.Execute(w, templateVar)
-							if err != nil {
-								log.Println(err)
-							}
+							log.Println(err)
 						}
 					} else {
 						err := pageTemplate.Execute(w, templateVar)
@@ -574,6 +585,35 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 			p.site.base.rmutex.RUnlock()
 		}
 	}
+}
+
+func (p *Page) checkHtmlDoWrite(tplFi, htmlFi os.FileInfo, htmlErr error) bool {
+	var doWrite bool
+	if p.Config.AutoGenerateHtmlCycleTime <= 0 {
+		doWrite = true
+	} else {
+		if htmlErr != nil {
+			doWrite = true
+		} else {
+			switch {
+			case tplFi.ModTime().Unix() >= htmlFi.ModTime().Unix():
+				doWrite = true
+			case tplFi.ModTime().Unix() >= htmlFi.ModTime().Unix():
+				doWrite = true
+			case time.Now().Unix()-htmlFi.ModTime().Unix() >= p.Config.AutoGenerateHtmlCycleTime:
+				doWrite = true
+			default:
+				globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory)
+				if err == nil {
+					if globalTplFi.ModTime().Unix() >= htmlFi.ModTime().Unix() {
+						doWrite = true
+					}
+				}
+			}
+		}
+	}
+
+	return doWrite
 }
 
 func (p *Page) handleRootStatic(files string) {
