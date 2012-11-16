@@ -521,6 +521,7 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 					"P":        p.POST,
 					"S":        p.SESSION,
 					"C":        p.COOKIE,
+					"CS":       p.COOKIE_SESSION,
 					"D":        p.Document,
 					"L":        p.LANG,
 					"Config":   p.Config.M,
