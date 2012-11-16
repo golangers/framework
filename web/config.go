@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"os"
 	"regexp"
 )
@@ -12,6 +13,8 @@ type Config struct {
 	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
 	SupportI18n               bool                   `json:"SupportI18n"`
+	SupportStatic             bool                   `json:"SupportStatic"`
+	RootStaticFiles           string                 `json:"RootStaticFiles"`
 	DefaultLanguage           string                 `json:"DefaultLanguage"`
 	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
@@ -44,6 +47,7 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
+		RootStaticFiles:         "favicon.ico",
 		TemplateDirectory:       "./view/",
 		TemporaryDirectory:      "./tmp/",
 		AssetsDirectory:         "./assets/",
@@ -70,7 +74,7 @@ func NewConfig() Config {
 func (c *Config) format(configPath string) []byte {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 
 	return regexp.MustCompile(`#.*\n`).ReplaceAll(data, []byte("\n"))
@@ -81,7 +85,8 @@ func (c *Config) Load(configPath string) {
 
 	err := json.Unmarshal(data, c)
 	if err != nil {
-		panic(err)
+		log.Println("jsonData:", string(data))
+		log.Panic(err)
 	}
 
 	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory

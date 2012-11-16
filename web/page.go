@@ -576,8 +576,9 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Page) HandleRootStatic(files ...string) {
-	for _, file := range files {
+func (p *Page) handleRootStatic(files string) {
+	aFile := strings.Split(files, ",")
+	for _, file := range aFile {
 		http.HandleFunc(p.site.Root+file, func(w http.ResponseWriter, r *http.Request) {
 			staticPath := p.Config.AssetsDirectory + file
 			http.ServeFile(w, r, staticPath)
@@ -585,7 +586,7 @@ func (p *Page) HandleRootStatic(files ...string) {
 	}
 }
 
-func (p *Page) HandleStatic() {
+func (p *Page) handleStatic() {
 	StaticHtmlDir := p.Config.SiteRoot + p.Config.HtmlDirectory
 	http.HandleFunc(StaticHtmlDir, func(w http.ResponseWriter, r *http.Request) {
 		staticPath := p.Config.AssetsDirectory + p.Config.HtmlDirectory + r.URL.Path[len(StaticHtmlDir):]
@@ -618,6 +619,11 @@ func (p *Page) handleRoute(i interface{}) {
 }
 
 func (p *Page) ListenAndServe(addr string, i interface{}) {
+	if p.Config.SupportStatic {
+		p.handleRootStatic(p.Config.RootStaticFiles)
+		p.handleStatic()
+	}
+
 	p.handleRoute(i)
 
 	err := http.ListenAndServe(addr, nil)
