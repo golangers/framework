@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"golanger.com/framework/i18n"
 	"golanger.com/framework/session"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -31,7 +32,6 @@ type Page struct {
 	POST                map[string]string
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
-	ONCE_SESSION        interface{}
 	LANG                map[string]string
 	Session             *session.SessionManager
 	I18n                *i18n.I18nManager
@@ -72,7 +72,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
-		I18n:          i18n.New(param.I18nName),
+		I18n:          i18n.New(param.I18nName, "", ""),
 	}
 }
 
@@ -87,11 +87,6 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.COOKIE = p.site.base.getHttpCookie(r)
 	if p.site.supportSession {
 		p.SESSION = p.Session.Get(w, r)
-		var ok bool
-		p.ONCE_SESSION, ok = p.SESSION["__ONCE"]
-		if ok {
-			delete(p.SESSION, "__ONCE")
-		}
 	}
 
 	if p.site.supportI18n {
@@ -168,7 +163,6 @@ func (p *Page) reset(update bool) {
 		if p.site.supportSession != p.Config.SupportSession {
 			p.site.supportSession = p.Config.SupportSession
 		}
-
 		if p.site.supportI18n != p.Config.SupportI18n {
 			p.site.supportI18n = p.Config.SupportI18n
 		}
@@ -177,8 +171,8 @@ func (p *Page) reset(update bool) {
 			p.Document.Theme = p.Config.Theme
 		}
 
-		if p.Document.Static != p.Config.SiteRoot+p.Config.StaticDirectory[2:] {
-			p.Document.Static = p.Config.SiteRoot + p.Config.StaticDirectory[2:]
+		if p.Document.Static != p.Config.SiteRoot+p.Config.StaticDirectory {
+			p.Document.Static = p.Config.SiteRoot + p.Config.StaticDirectory
 		}
 
 		if p.site.Root == p.Config.SiteRoot {
@@ -193,17 +187,15 @@ func (p *Page) reset(update bool) {
 		p.site.supportI18n = p.Config.SupportI18n
 		p.Document.Theme = p.Config.Theme
 		p.site.Root = p.Config.SiteRoot
-		p.Document.Static = p.site.Root + p.Config.StaticDirectory[2:]
+		p.Document.Static = p.site.Root + p.Config.StaticDirectory
 		p.SetDefaultController(p.GetController(p.Config.IndexDirectory))
 		p.RegisterController(p.site.Root, p.DefaultController)
 		p.site.globalTemplate = template.New("globalTpl").Funcs(p.site.templateFunc)
 	}
 
-	siteRootRightTrim := p.site.Root[:len(p.site.Root)-1]
-
 	if globalCssFi, err := os.Stat(p.Config.StaticCssDirectory + "/global/"); err == nil && globalCssFi.IsDir() {
 		DcssPath := p.Config.StaticCssDirectory + "global/"
-		p.Document.Css["global"] = siteRootRightTrim + DcssPath[1:]
+		p.Document.Css["global"] = p.site.Root + DcssPath[len(p.Config.AssetsDirectory):]
 		if _, err := os.Stat(DcssPath + "global.css"); err == nil {
 			p.Document.GlobalCssFile = p.Document.Css["global"] + "global.css"
 		}
@@ -211,7 +203,7 @@ func (p *Page) reset(update bool) {
 
 	if globalJsFi, err := os.Stat(p.Config.StaticJsDirectory + "/global/"); err == nil && globalJsFi.IsDir() {
 		DjsPath := p.Config.StaticJsDirectory + "global/"
-		p.Document.Js["global"] = siteRootRightTrim + DjsPath[1:]
+		p.Document.Js["global"] = p.site.Root + DjsPath[len(p.Config.AssetsDirectory):]
 		if _, err := os.Stat(DjsPath + "global.js"); err == nil {
 			p.Document.GlobalJsFile = p.Document.Js["global"] + "global.js"
 		}
@@ -219,7 +211,7 @@ func (p *Page) reset(update bool) {
 
 	if globalImgFi, err := os.Stat(p.Config.StaticImgDirectory + "/global/"); err == nil && globalImgFi.IsDir() {
 		DimgPath := p.Config.StaticImgDirectory + "global/"
-		p.Document.Img["global"] = siteRootRightTrim + DimgPath[1:]
+		p.Document.Img["global"] = p.site.Root + DimgPath[len(p.Config.AssetsDirectory):]
 	}
 
 	if t, _ := p.site.globalTemplate.ParseGlob(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory + p.Config.TemplateGlobalFile); t != nil {
@@ -389,7 +381,6 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 func (p *Page) setStaticDocument() {
 	fileNameNoExt := p.currentFileName[:len(p.currentFileName)-len(filepath.Ext(p.currentFileName))]
 	p.site.base.rmutex.RLock()
-	siteRootRightTrim := p.site.Root[:len(p.site.Root)-1]
 	p.site.base.rmutex.RUnlock()
 
 	cssFi, cssErr := os.Stat(p.Config.StaticCssDirectory + p.currentPath)
@@ -399,7 +390,7 @@ func (p *Page) setStaticDocument() {
 	if cssErr == nil && cssFi.IsDir() {
 		cssPath := strings.Trim(p.currentPath, "/")
 		DcssPath := p.Config.StaticCssDirectory + cssPath + "/"
-		p.Document.Css[cssPath] = siteRootRightTrim + DcssPath[1:]
+		p.Document.Css[cssPath] = p.site.Root + DcssPath[len(p.Config.AssetsDirectory):]
 
 		_, errgcss := os.Stat(DcssPath + "global.css")
 		_, errcss := os.Stat(DcssPath + fileNameNoExt + ".css")
@@ -411,13 +402,12 @@ func (p *Page) setStaticDocument() {
 		if errcss == nil {
 			p.Document.IndexCssFile = p.Document.Css[cssPath] + fileNameNoExt + ".css"
 		}
-
 	}
 
 	if jsErr == nil && jsFi.IsDir() {
 		jsPath := strings.Trim(p.currentPath, "/")
 		DjsPath := p.Config.StaticJsDirectory + jsPath + "/"
-		p.Document.Js[jsPath] = siteRootRightTrim + DjsPath[1:]
+		p.Document.Js[jsPath] = p.site.Root + DjsPath[len(p.Config.AssetsDirectory):]
 
 		_, errgjs := os.Stat(DjsPath + "global.js")
 		_, errjs := os.Stat(DjsPath + fileNameNoExt + ".js")
@@ -434,7 +424,7 @@ func (p *Page) setStaticDocument() {
 	if imgErr == nil && imgFi.IsDir() {
 		imgPath := strings.Trim(p.currentPath, "/")
 		DimgPath := p.Config.StaticImgDirectory + imgPath + "/"
-		p.Document.Img[imgPath] = siteRootRightTrim + DimgPath[1:]
+		p.Document.Img[imgPath] = p.site.Root + DimgPath[len(p.Config.AssetsDirectory):]
 	}
 }
 
@@ -465,11 +455,10 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 				templateVar := map[string]interface{}{
 					"G":        p.GET,
 					"P":        p.POST,
+					"S":        p.SESSION,
 					"C":        p.COOKIE,
 					"D":        p.Document,
 					"L":        p.LANG,
-					"S":        p.SESSION,
-					"O_S":      p.ONCE_SESSION,
 					"Config":   p.Config.M,
 					"Template": p.Template,
 				}
@@ -480,10 +469,20 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 				p.site.base.rmutex.RUnlock()
 
 				if p.Document.GenerateHtml {
+					htmlFile := ""
 					p.site.base.rmutex.RLock()
-					htmlFile := p.Config.StaticDirectory + p.Config.HtmlDirectory + p.site.Root + p.Template
-					p.site.base.rmutex.RUnlock()
+					assetsHtmlDir := p.Config.AssetsDirectory + p.Config.HtmlDirectory
+					if strings.HasPrefix(p.Template, p.Config.IndexDirectory) {
+						htmlFile = assetsHtmlDir + strings.Replace(p.Template, p.Config.IndexDirectory, "", 1)
+					} else {
+						htmlFile = assetsHtmlDir + p.Template
+					}
 
+					if r.URL.RawQuery != "" {
+						htmlFile += "?" + r.URL.RawQuery
+					}
+
+					p.site.base.rmutex.RUnlock()
 					htmlDir := filepath.Dir(htmlFile)
 					if htmlDirFi, err := os.Stat(htmlDir); err != nil || !htmlDirFi.IsDir() {
 						os.MkdirAll(htmlDir, 0777)
@@ -491,10 +490,13 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 
 					var doWrite bool
 					if p.Config.AutoGenerateHtml {
+						var htmlFi os.FileInfo
+						var htmlErr error
 						if p.Config.AutoGenerateHtmlCycleTime <= 0 {
 							doWrite = true
 						} else {
-							if htmlFi, err := os.Stat(htmlFile); err != nil {
+							htmlFi, htmlErr = os.Stat(htmlFile)
+							if htmlErr != nil {
 								doWrite = true
 							} else {
 								switch {
@@ -514,19 +516,36 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 								}
 							}
 						}
-					}
 
-					if doWrite {
-						if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err == nil {
-							templateVar["Siteroot"] = p.Config.SiteRoot + htmlDir + "/"
-							pageTemplate.Execute(file, templateVar)
+						if doWrite {
+							if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err == nil {
+								if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
+									templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
+								}
+
+								pageTemplate.Execute(file, templateVar)
+							} else {
+								log.Println(err)
+							}
 						}
-					}
 
-					if p.Config.AutoJumpToHtml {
-						p.site.base.rmutex.RLock()
-						http.Redirect(w, r, p.site.Root+htmlFile[2:], http.StatusFound)
-						p.site.base.rmutex.RUnlock()
+						if p.Config.AutoJumpToHtml {
+							p.site.base.rmutex.RLock()
+							http.Redirect(w, r, p.site.Root+htmlFile[2:], http.StatusFound)
+							p.site.base.rmutex.RUnlock()
+						} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
+							htmlContent, err := ioutil.ReadFile(htmlFile)
+							if err == nil {
+								w.Write(htmlContent)
+							} else {
+								log.Println(err)
+							}
+						} else {
+							err := pageTemplate.Execute(w, templateVar)
+							if err != nil {
+								log.Println(err)
+							}
+						}
 					} else {
 						err := pageTemplate.Execute(w, templateVar)
 						if err != nil {
@@ -557,16 +576,28 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Page) HandleFavicon() {
-	http.HandleFunc(p.site.Root+"favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		staticPath := p.Config.StaticDirectory + p.Config.ThemeDirectory + "favicon.ico"
-		http.ServeFile(w, r, staticPath)
-	})
+func (p *Page) HandleRootStatic(files ...string) {
+	for _, file := range files {
+		http.HandleFunc(p.site.Root+file, func(w http.ResponseWriter, r *http.Request) {
+			staticPath := p.Config.AssetsDirectory + file
+			http.ServeFile(w, r, staticPath)
+		})
+	}
 }
 
 func (p *Page) HandleStatic() {
+	StaticHtmlDir := p.Config.SiteRoot + p.Config.HtmlDirectory
+	http.HandleFunc(StaticHtmlDir, func(w http.ResponseWriter, r *http.Request) {
+		staticPath := p.Config.AssetsDirectory + p.Config.HtmlDirectory + r.URL.Path[len(StaticHtmlDir):]
+		if r.URL.RawQuery != "" {
+			staticPath += "?" + r.URL.RawQuery
+		}
+
+		http.ServeFile(w, r, staticPath)
+	})
+
 	http.HandleFunc(p.Document.Static, func(w http.ResponseWriter, r *http.Request) {
-		staticPath := p.Config.StaticDirectory + r.URL.Path[len(p.Document.Static):]
+		staticPath := p.Config.AssetsDirectory + p.Config.StaticDirectory + r.URL.Path[len(p.Document.Static):]
 		http.ServeFile(w, r, staticPath)
 	})
 }
@@ -576,12 +607,6 @@ func (p *Page) handleRoute(i interface{}) {
 		p.site.base.mutex.Lock()
 		if p.Config.Reload() {
 			p.reset(true)
-		}
-
-		if p.site.supportI18n {
-			if err := p.I18n.Setup(p.Config.DefaultLocalePath, p.Config.DefaultLanguage); err != nil {
-				log.Panicf("I18n(Setup):", err)
-			}
 		}
 
 		p.setCurrentInfo(r.URL.Path)
@@ -597,7 +622,7 @@ func (p *Page) ListenAndServe(addr string, i interface{}) {
 
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(-1)
 	}
 }

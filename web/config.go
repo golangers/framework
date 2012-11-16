@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	Debug                     bool                   `json:"Debug"`
 	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
 	SupportI18n               bool                   `json:"SupportI18n"`
@@ -15,8 +16,10 @@ type Config struct {
 	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
 	AutoGenerateHtmlCycleTime int64                  `json:"AutoGenerateHtmlCycleTime"`
+	AutoLoadStaticHtml        bool                   `json:"AutoLoadStaticHtml"`
+	ChangeSiteRoot            bool                   `json:"ChangeSiteRoot"`
 	AutoJumpToHtml            bool                   `json:"AutoJumpToHtml"`
-	Debug                     bool                   `json:"Debug"`
+	AssetsDirectory           string                 `json:"AssetsDirectory"`
 	StaticDirectory           string                 `json:"StaticDirectory"`
 	ThemeDirectory            string                 `json:"ThemeDirectory"`
 	Theme                     string                 `json:"Theme"`
@@ -43,7 +46,8 @@ func NewConfig() Config {
 	return Config{
 		TemplateDirectory:       "./view/",
 		TemporaryDirectory:      "./tmp/",
-		StaticDirectory:         "./static/",
+		AssetsDirectory:         "./assets/",
+		StaticDirectory:         "static/",
 		DefaultLanguage:         "zh-cn",
 		DefaultLocalePath:       "./locale/",
 		ThemeDirectory:          "theme/",
@@ -80,11 +84,11 @@ func (c *Config) Load(configPath string) {
 		panic(err)
 	}
 
-	c.UploadDirectory = c.StaticDirectory + c.UploadDirectory
+	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
 	c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
-	c.StaticCssDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
-	c.StaticJsDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
-	c.StaticImgDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
+	c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
+	c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
+	c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
 
 	c.configPath = configPath
 	dataFi, _ := os.Stat(configPath)
@@ -101,11 +105,11 @@ func (c *Config) Reload() bool {
 		json.Unmarshal(data, c)
 		c.configPath = configPath
 		c.configLastModTime = dataFi.ModTime().Unix()
-		c.UploadDirectory = c.StaticDirectory + c.UploadDirectory
+		c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
 		c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
-		c.StaticCssDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
-		c.StaticJsDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
-		c.StaticImgDirectory = c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
+		c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
+		c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
+		c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
 		b = true
 	}
 
