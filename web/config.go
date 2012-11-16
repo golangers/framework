@@ -12,6 +12,7 @@ type Config struct {
 	Debug                     bool                   `json:"Debug"`
 	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
+	SupportCookieSession      bool                   `json:"SupportCookieSession"`
 	SupportI18n               bool                   `json:"SupportI18n"`
 	SupportStatic             bool                   `json:"SupportStatic"`
 	RootStaticFiles           string                 `json:"RootStaticFiles"`

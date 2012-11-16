@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"golanger.com/framework/cookiesession"
 	"golanger.com/framework/i18n"
 	"golanger.com/framework/session"
 	"io/ioutil"
@@ -32,19 +33,23 @@ type Page struct {
 	POST                map[string]string
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
+	COOKIE_SESSION      map[string]interface{}
 	LANG                map[string]string
 	Session             *session.SessionManager
+	CookieSession       *cookiesession.SessionManager
 	I18n                *i18n.I18nManager
 	currentPath         string
 	currentFileName     string
 }
 
 type PageParam struct {
-	MaxFormSize   int64
-	CookieName    string
-	I18nName      string
-	Expires       int
-	TimerDuration string
+	MaxFormSize       int64
+	CookieName        string
+	CookieSessionName string
+	CookieSessionKey  string
+	I18nName          string
+	Expires           int
+	TimerDuration     string
 }
 
 func NewPage(param PageParam) Page {
@@ -72,6 +77,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
+		CookieSession: cookiesession.New(param.CookieSessionName, param.CookieSessionKey),
 		I18n:          i18n.New(param.I18nName, "", ""),
 	}
 }
@@ -87,6 +93,10 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.COOKIE = p.site.base.getHttpCookie(r)
 	if p.site.supportSession {
 		p.SESSION = p.Session.Get(w, r)
+	}
+
+	if p.site.supportCookieSession {
+		p.COOKIE_SESSION = p.CookieSession.Get(r)
 	}
 
 	if p.site.supportI18n {
@@ -163,6 +173,11 @@ func (p *Page) reset(update bool) {
 		if p.site.supportSession != p.Config.SupportSession {
 			p.site.supportSession = p.Config.SupportSession
 		}
+
+		if p.site.supportCookieSession != p.Config.SupportCookieSession {
+			p.site.supportCookieSession = p.Config.SupportCookieSession
+		}
+
 		if p.site.supportI18n != p.Config.SupportI18n {
 			p.site.supportI18n = p.Config.SupportI18n
 		}
@@ -184,6 +199,7 @@ func (p *Page) reset(update bool) {
 		}
 	} else {
 		p.site.supportSession = p.Config.SupportSession
+		p.site.supportCookieSession = p.Config.SupportCookieSession
 		p.site.supportI18n = p.Config.SupportI18n
 		p.Document.Theme = p.Config.Theme
 		p.site.Root = p.Config.SiteRoot
@@ -416,11 +432,14 @@ DO_ROUTER:
 		}
 	}
 
+	if ppc.Config.SupportCookieSession {
+		ppc.CookieSession.Set(ppc.COOKIE_SESSION, w, r)
+	}
+
 	if ppc.Config.SupportTemplate {
 		ppc.setStaticDocument()
 		ppc.routeTemplate(w, r)
 	}
-
 }
 
 func (p *Page) setStaticDocument() {

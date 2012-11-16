@@ -15,13 +15,14 @@ type templateCache struct {
 
 type site struct {
 	*base
-	supportSession bool
-	supportI18n    bool
-	templateFunc   template.FuncMap
-	templateCache  map[string]templateCache
-	globalTemplate *template.Template
-	Root           string
-	Version        string
+	supportSession       bool
+	supportCookieSession bool
+	supportI18n          bool
+	templateFunc         template.FuncMap
+	templateCache        map[string]templateCache
+	globalTemplate       *template.Template
+	Root                 string
+	Version              string
 }
 
 func (s *site) Init(w http.ResponseWriter, r *http.Request) *site {
