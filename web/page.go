@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"fmt"
 	"golanger.com/framework/cookiesession"
 	"golanger.com/framework/i18n"
@@ -168,6 +169,32 @@ func (p *Page) Load(configPath string) {
 	p.reset(false)
 }
 
+func (p *Page) setGlobalTpl(globalTplModTime int64, reset bool) {
+	if globalTpls, err := filepath.Glob(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory + p.Config.TemplateGlobalFile); err == nil && globalTpls != nil && len(globalTpls) > 0 {
+		var buf bytes.Buffer
+		for _, tpl := range globalTpls {
+			if b, err := ioutil.ReadFile(tpl); err == nil {
+				buf.Write(b)
+			}
+		}
+
+		sBuf := strings.TrimSpace(buf.String())
+		if sBuf != "" {
+			p.site.SetTemplateCacheObject("globalTpl", buf.String(), globalTplModTime)
+			if reset {
+				newT := template.New("globalTpl").Funcs(p.site.templateFunc)
+				if t, _ := newT.Parse(sBuf); t != nil {
+					p.site.globalTemplate = t
+				}
+			} else {
+				if t, _ := p.site.globalTemplate.Parse(sBuf); t != nil {
+					p.site.globalTemplate = t
+				}
+			}
+		}
+	}
+}
+
 func (p *Page) reset(update bool) {
 	if update {
 		if p.site.supportSession != p.Config.SupportSession {
@@ -230,8 +257,8 @@ func (p *Page) reset(update bool) {
 		p.Document.Img["global"] = p.site.Root + DimgPath[len(p.Config.AssetsDirectory):]
 	}
 
-	if t, _ := p.site.globalTemplate.ParseGlob(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory + p.Config.TemplateGlobalFile); t != nil {
-		p.site.globalTemplate = t
+	if globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory); err == nil {
+		p.setGlobalTpl(globalTplFi.ModTime().Unix(), false)
 	}
 }
 
@@ -361,7 +388,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		if tplErr == nil {
 
 			ppc.site.base.rmutex.RLock()
-			tmplCache := ppc.GetTemplateCache(ppc.Template)
+			tmplCache := ppc.site.GetTemplateCache(ppc.Template)
 			ppc.site.base.rmutex.RUnlock()
 			if tplFi.ModTime().Unix() > tmplCache.ModTime {
 				goto DO_ROUTER
@@ -498,17 +525,24 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if p.Document.Close == false && p.Document.Hide == false {
-		if tplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Template); err == nil {
+		if globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory); err == nil {
+			if globalTplCache := p.site.GetTemplateCache("globalTpl"); globalTplCache.ModTime > 0 {
+				if globalTplFi.ModTime().Unix() > globalTplCache.ModTime {
+					p.setGlobalTpl(globalTplFi.ModTime().Unix(), true)
+				}
+			}
+		}
 
+		if tplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Template); err == nil {
 			p.site.base.rmutex.RLock()
-			tmplCache := p.GetTemplateCache(p.Template)
+			tmplCache := p.site.GetTemplateCache(p.Template)
 
 			if tplFi.ModTime().Unix() > tmplCache.ModTime {
 				p.site.base.mutex.Lock()
 				p.SetTemplateCache(p.Template, p.Config.TemplateDirectory+p.Config.ThemeDirectory+p.Template)
 				p.site.base.mutex.Unlock()
 
-				tmplCache = p.GetTemplateCache(p.Template)
+				tmplCache = p.site.GetTemplateCache(p.Template)
 			}
 
 			globalTemplate, _ := p.site.globalTemplate.Clone()
@@ -596,7 +630,7 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			p.site.base.rmutex.RLock()
-			tmplCache := p.GetTemplateCache(p.Template)
+			tmplCache := p.site.GetTemplateCache(p.Template)
 			if tmplCache.ModTime > 0 {
 				p.site.base.mutex.Lock()
 				p.DelTemplateCache(p.Template)
@@ -623,11 +657,8 @@ func (p *Page) checkHtmlDoWrite(tplFi, htmlFi os.FileInfo, htmlErr error) bool {
 			case time.Now().Unix()-htmlFi.ModTime().Unix() >= p.Config.AutoGenerateHtmlCycleTime:
 				doWrite = true
 			default:
-				globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory)
-				if err == nil {
-					if globalTplFi.ModTime().Unix() >= htmlFi.ModTime().Unix() {
-						doWrite = true
-					}
+				if globalTplCache := p.site.GetTemplateCache("globalTpl"); globalTplCache.ModTime > 0 && globalTplCache.ModTime >= htmlFi.ModTime().Unix() {
+					doWrite = true
 				}
 			}
 		}

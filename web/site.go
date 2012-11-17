@@ -1,8 +1,8 @@
 package web
 
 import (
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"text/template"
@@ -36,7 +36,7 @@ func (s *site) AddTemplateFunc(name string, i interface{}) {
 	if !ok {
 		s.templateFunc[name] = i
 	} else {
-		fmt.Println("func:" + name + " be added,do not repeat to add")
+		log.Println("func:" + name + " be added,do not repeat to add")
 	}
 }
 
@@ -46,13 +46,17 @@ func (s *site) DelTemplateFunc(name string) {
 	}
 }
 
+func (s *site) SetTemplateCacheObject(tmplKey, content string, modTime int64) {
+	s.templateCache[tmplKey] = templateCache{
+		ModTime: modTime,
+		Content: content,
+	}
+}
+
 func (s *site) SetTemplateCache(tmplKey, tmplPath string) {
 	if tmplFi, err := os.Stat(tmplPath); err == nil {
 		if b, err := ioutil.ReadFile(tmplPath); err == nil {
-			s.templateCache[tmplKey] = templateCache{
-				ModTime: tmplFi.ModTime().Unix(),
-				Content: string(b),
-			}
+			s.SetTemplateCacheObject(tmplKey, string(b), tmplFi.ModTime().Unix())
 		}
 	}
 
