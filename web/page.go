@@ -83,7 +83,7 @@ func NewPage(param PageParam) Page {
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
 		FileSession:   filesession.New(param.CookieName, param.Expires, param.SessionDir, param.TimerDuration),
 		CookieSession: cookiesession.New(param.CookieSessionName, param.CookieSessionKey),
-		I18n:          i18n.New(param.I18nName, "", ""),
+		I18n:          i18n.New(param.I18nName),
 	}
 }
 
@@ -721,6 +721,12 @@ func (p *Page) handleRoute(i interface{}) {
 		p.site.base.mutex.Lock()
 		if p.Config.Reload() {
 			p.reset(true)
+		}
+
+		if p.site.supportI18n {
+			if err := p.I18n.Setup(p.Config.DefaultLocalePath, p.Config.DefaultLanguage); err != nil {
+				log.Panicf("I18n(Setup):", err)
+			}
 		}
 
 		p.setCurrentInfo(r.URL.Path)
