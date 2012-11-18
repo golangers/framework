@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"golanger.com/framework/cookiesession"
+	"golanger.com/framework/filesession"
 	"golanger.com/framework/i18n"
 	"golanger.com/framework/session"
 	"io/ioutil"
@@ -37,6 +38,7 @@ type Page struct {
 	COOKIE_SESSION      map[string]interface{}
 	LANG                map[string]string
 	Session             *session.SessionManager
+	FileSession         *filesession.SessionManager
 	CookieSession       *cookiesession.SessionManager
 	I18n                *i18n.I18nManager
 	currentPath         string
@@ -45,6 +47,7 @@ type Page struct {
 
 type PageParam struct {
 	MaxFormSize       int64
+	SessionDir        string
 	CookieName        string
 	CookieSessionName string
 	CookieSessionKey  string
@@ -78,6 +81,7 @@ func NewPage(param PageParam) Page {
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
 		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
+		FileSession:   filesession.New(param.CookieName, param.Expires, param.SessionDir, param.TimerDuration),
 		CookieSession: cookiesession.New(param.CookieSessionName, param.CookieSessionKey),
 		I18n:          i18n.New(param.I18nName, "", ""),
 	}
@@ -93,7 +97,14 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.POST = p.site.base.getHttpPost(r, p.MAX_FORM_SIZE)
 	p.COOKIE = p.site.base.getHttpCookie(r)
 	if p.site.supportSession {
-		p.SESSION = p.Session.Get(w, r)
+		switch p.Config.SessionType {
+		case "file":
+			p.SESSION = p.FileSession.Get(w, r)
+		case "memory":
+			p.SESSION = p.Session.Get(w, r)
+		default:
+			p.SESSION = p.Session.Get(w, r)
+		}
 	}
 
 	if p.site.supportCookieSession {
@@ -459,7 +470,18 @@ DO_ROUTER:
 		}
 	}
 
-	if ppc.Config.SupportCookieSession {
+	if ppc.site.supportSession {
+		switch ppc.Config.SessionType {
+		case "file":
+			ppc.FileSession.Set(ppc.SESSION, w, r)
+		case "memory":
+			ppc.Session.Set(w, r)
+		default:
+			ppc.Session.Set(w, r)
+		}
+	}
+
+	if ppc.site.supportCookieSession {
 		ppc.CookieSession.Set(ppc.COOKIE_SESSION, w, r)
 	}
 

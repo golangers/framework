@@ -15,6 +15,7 @@ type Config struct {
 	SupportCookieSession      bool                   `json:"SupportCookieSession"`
 	SupportI18n               bool                   `json:"SupportI18n"`
 	SupportStatic             bool                   `json:"SupportStatic"`
+	SessionType               string                 `json:"SessionType"`
 	RootStaticFiles           string                 `json:"RootStaticFiles"`
 	DefaultLanguage           string                 `json:"DefaultLanguage"`
 	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
@@ -49,6 +50,7 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
+		SessionType:             "memory",
 		RootStaticFiles:         "favicon.ico",
 		TemplateDirectory:       "./view/",
 		TemporaryDirectory:      "./tmp/",

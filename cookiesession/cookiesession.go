@@ -138,7 +138,7 @@ func (s *SessionManager) Set(session map[string]interface{}, rw http.ResponseWri
 				Name:    s.CookieName,
 				Value:   "",
 				Path:    "/",
-				Expires: time.Unix(0, 0).UTC(),
+				Expires: time.Now().Add(-3600),
 			}
 
 			http.SetCookie(rw, cookie)

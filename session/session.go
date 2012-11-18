@@ -25,7 +25,7 @@ func New(cookieName string, expires int, timerDuration string) *SessionManager {
 	}
 
 	if expires <= 0 {
-		expires = 3600
+		expires = 3600 * 24
 	}
 
 	var dTimerDuration time.Duration
@@ -67,6 +67,28 @@ func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[stri
 	s.mutex.Unlock()
 
 	return s.sessions[sessionSign][1]
+}
+
+func (s *SessionManager) Set(rw http.ResponseWriter, req *http.Request) {
+	if c, err := req.Cookie(s.CookieName); err == nil {
+		sessionSign := c.Value
+		s.rmutex.RLock()
+		lsess := len(s.sessions[sessionSign][1])
+		s.rmutex.RUnlock()
+
+		if lsess == 0 {
+			s.Clear(sessionSign)
+			bCookie := &http.Cookie{
+				Name:     s.CookieName,
+				Value:    "",
+				Path:     "/",
+				Expires:  time.Now().Add(-3600),
+				HttpOnly: true,
+			}
+
+			http.SetCookie(rw, bCookie)
+		}
+	}
 }
 
 func (s *SessionManager) Len() int64 {
