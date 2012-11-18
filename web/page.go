@@ -35,6 +35,7 @@ type Page struct {
 	POST                map[string]string
 	COOKIE              map[string]string
 	SESSION             map[string]interface{}
+	ONCE_SESSION        interface{}
 	COOKIE_SESSION      map[string]interface{}
 	LANG                map[string]string
 	Session             *session.SessionManager
@@ -104,6 +105,12 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 			p.SESSION = p.Session.Get(w, r)
 		default:
 			p.SESSION = p.Session.Get(w, r)
+		}
+
+		var ok bool
+		p.ONCE_SESSION, ok = p.SESSION["__ONCE"]
+		if ok {
+			delete(p.SESSION, "__ONCE")
 		}
 	}
 
@@ -576,6 +583,7 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 					"G":        p.GET,
 					"P":        p.POST,
 					"S":        p.SESSION,
+					"O_S":      p.ONCE_SESSION,
 					"C":        p.COOKIE,
 					"CS":       p.COOKIE_SESSION,
 					"D":        p.Document,
