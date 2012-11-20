@@ -1,9 +1,15 @@
 package utils
 
 import (
+	"encoding/gob"
 	"reflect"
 	"strconv"
 )
+
+func init() {
+	gob.Register([]M{})
+	gob.Register(M{})
+}
 
 type M map[string]interface{}
 

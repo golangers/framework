@@ -14,7 +14,14 @@ import (
 	"time"
 )
 
-func encodeGob(obj interface{}) (string, error) {
+func init() {
+	gob.Register([]interface{}{})
+	gob.Register(map[int]interface{}{})
+	gob.Register(map[string]interface{}{})
+	gob.Register(map[interface{}]interface{}{})
+}
+
+func encodeGob(obj map[string]interface{}) (string, error) {
 	buf := bytes.NewBuffer(nil)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(obj)
@@ -35,11 +42,25 @@ func decodeGob(encoded []byte) (map[string]interface{}, error) {
 	return out, nil
 }
 
-func encodeCookie(content interface{}, key, iv []byte) (string, error) {
+func encodeCookie(content map[string]interface{}, key, iv []byte) (string, error) {
+	var tryed bool
+TRY:
 	sessionGob, err := encodeGob(content)
 	if err != nil {
 		return "", err
+	} else {
+		if tryed {
+			log.Panicln("cookiesession(encodeCookie) error:", err)
+		} else {
+			for _, v := range content {
+				gob.Register(v)
+			}
+
+			tryed = true
+			goto TRY
+		}
 	}
+
 	//实现动态填充,达到aes.BlockSize的倍数,+4是为了后面提供4个字节来保存字符串长度使用的
 	padLen := aes.BlockSize - (len(sessionGob)+4)%aes.BlockSize
 	buf := bytes.NewBuffer(nil)

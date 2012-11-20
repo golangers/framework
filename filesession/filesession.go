@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +17,14 @@ import (
 	"time"
 )
 
-func encodeGob(obj interface{}) ([]byte, error) {
+func init() {
+	gob.Register([]interface{}{})
+	gob.Register(map[int]interface{}{})
+	gob.Register(map[string]interface{}{})
+	gob.Register(map[interface{}]interface{}{})
+}
+
+func encodeGob(obj map[string]interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(obj)
@@ -86,7 +94,7 @@ func writeFile(filePath string, content []byte) error {
 	return err
 }
 
-func sessionSign() string {
+func getSessionSign() string {
 	var n int = 24
 	b := make([]byte, n)
 	io.ReadFull(rand.Reader, b)
@@ -138,7 +146,7 @@ func New(cookieName string, expires int, sessionDir string, timerDuration string
 }
 
 func (s *SessionManager) new(rw http.ResponseWriter) string {
-	sessionSign := sessionSign()
+	sessionSign := getSessionSign()
 
 	bCookie := &http.Cookie{
 		Name:     s.CookieName,
@@ -158,8 +166,12 @@ func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[stri
 	if c, err := req.Cookie(s.CookieName); err == nil {
 		sessionSign := c.Value
 		if content, err := readFile(s.sessionDir + sessionSign + ".golanger"); err == nil {
-			if dm, err := decodeGob(content); err == nil {
-				m = dm
+			if len(content) > 0 {
+				if dm, err := decodeGob(content); err == nil {
+					m = dm
+				} else {
+					log.Panicln("filesession(decodeGob) error:", err)
+				}
 			}
 		}
 	} else {
@@ -174,27 +186,43 @@ func (s *SessionManager) Set(session map[string]interface{}, rw http.ResponseWri
 	lsess := len(session)
 	if cerr == nil {
 		sessionSign := c.Value
-		if lsess == 0 {
-			s.Clear(sessionSign)
-
-			bCookie := &http.Cookie{
-				Name:     s.CookieName,
-				Value:    "",
-				Path:     "/",
-				Expires:  time.Now().Add(-3600),
-				HttpOnly: true,
+		if lsess > 0 {
+			var tryed bool
+		TRY1:
+			if encodeSession, err := encodeGob(session); err == nil {
+				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
+			} else {
+				if tryed {
+					log.Panicln("filesession(encodeGob) error:", err)
+				} else {
+					for _, v := range session {
+						gob.Register(v)
+					}
+					tryed = true
+					goto TRY1
+				}
 			}
-
-			http.SetCookie(rw, bCookie)
 		} else {
-			encodeSession, _ := encodeGob(session)
-			writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
+			s.Clear(sessionSign)
 		}
 	} else {
-		if lsess != 0 {
-			sessionSign := s.new(rw)
-			encodeSession, _ := encodeGob(session)
-			writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
+		if lsess > 0 {
+			var tryed bool
+		TRY2:
+			if encodeSession, err := encodeGob(session); err == nil {
+				sessionSign := s.new(rw)
+				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
+			} else {
+				if tryed {
+					log.Panicln("filesession(encodeGob) error:", err)
+				} else {
+					for _, v := range session {
+						gob.Register(v)
+					}
+					tryed = true
+					goto TRY2
+				}
+			}
 		}
 	}
 }
