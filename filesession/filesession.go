@@ -1,3 +1,18 @@
+/*
+由于跨程序共享session使用的是Gob，在session中有用户自定义类型时，如果另一程序未预先注册此UserType,会报错
+因此，暂不考虑跨程序共享session时的资源互斥问题，顾将//(1)处代码注释掉
+
+为避免任何隐藏麻烦，在Encode时如失败不会去尝试gob.Register注册，会直接报错。
+以免上一次Encode失败时尝试注册的的类型再Decode时不被识别到，而报错。
+顾在程序运行时，尽可能完整的做好测试，再遇到Encode出错时，预注册好此用户自定义类型
+注册方式可以：
+import "encoding/gob"
+func init() {
+	gob.Register([UserType的初始化])
+}
+
+如果明确知晓session的传输类型，并且在linux系统环境下，可以将//(1)代码解除注释，将//(2)代码注释即可
+*/
 package filesession
 
 import (
@@ -5,7 +20,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/gob"
-	"errors"
+	//(1)
+	//"errors"
+	//(1)
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,8 +30,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"syscall"
+	"sync"
+	//(1)
+	//"syscall"
+	//(1)
 	"time"
+)
+
+var (
+	sessionLock sync.RWMutex
 )
 
 func init() {
@@ -47,7 +71,10 @@ func decodeGob(encoded []byte) (map[string]interface{}, error) {
 
 func readFile(filePath string) ([]byte, error) {
 	var content []byte
-	f, err := os.OpenFile(filePath, os.O_RDONLY, 0777)
+	//(1)
+	//由于跨程序共享session使用的是Gob，在session中有用户自定义类型时，如果另一程序未预先注册此UserType,会报错
+	//因此，暂不考虑跨程序共享session时的资源互斥问题，顾以下代码先注释
+	/*f, err := os.OpenFile(filePath, os.O_RDONLY, 0777)
 	if err == nil {
 		fd := int(f.Fd())
 		//防止死等待
@@ -64,13 +91,24 @@ func readFile(filePath string) ([]byte, error) {
 				}
 			}
 		}
-	}
+	}*/
+	//(1)
+
+	//(2)
+	var err error
+	sessionLock.RLock()
+	content, err = ioutil.ReadFile(filePath)
+	sessionLock.RUnlock()
+	//(2)
 
 	return content, err
 }
 
 func writeFile(filePath string, content []byte) error {
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
+	//(1)
+	//由于跨程序共享session使用的是Gob，在session中有用户自定义类型时，如果另一程序未预先注册此UserType,会报错
+	//因此，暂不考虑跨程序共享session时的资源互斥问题，顾以下代码先注释
+	/*f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
 	if err == nil {
 		fd := int(f.Fd())
 		//防止死等待
@@ -89,7 +127,14 @@ func writeFile(filePath string, content []byte) error {
 				}
 			}
 		}
-	}
+	}*/
+	//(1)
+
+	//(2)
+	sessionLock.Lock()
+	err := ioutil.WriteFile(filePath, content, os.ModePerm)
+	sessionLock.Unlock()
+	//(2)
 
 	return err
 }
@@ -120,7 +165,7 @@ func New(cookieName string, expires int, sessionDir string, timerDuration string
 	}
 
 	if sessionDir == "" {
-		sessionDir = os.TempDir() + "golangersession/"
+		sessionDir = "./tmp/" + "golangersession/"
 	}
 
 	os.MkdirAll(sessionDir, 0777)
@@ -187,41 +232,21 @@ func (s *SessionManager) Set(session map[string]interface{}, rw http.ResponseWri
 	if cerr == nil {
 		sessionSign := c.Value
 		if lsess > 0 {
-			var tryed bool
-		TRY1:
 			if encodeSession, err := encodeGob(session); err == nil {
 				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
 			} else {
-				if tryed {
-					log.Panicln("filesession(encodeGob) error:", err)
-				} else {
-					for _, v := range session {
-						gob.Register(v)
-					}
-					tryed = true
-					goto TRY1
-				}
+				log.Panicln("filesession(encodeGob) error:", err)
 			}
 		} else {
 			s.Clear(sessionSign)
 		}
 	} else {
 		if lsess > 0 {
-			var tryed bool
-		TRY2:
 			if encodeSession, err := encodeGob(session); err == nil {
 				sessionSign := s.new(rw)
 				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
 			} else {
-				if tryed {
-					log.Panicln("filesession(encodeGob) error:", err)
-				} else {
-					for _, v := range session {
-						gob.Register(v)
-					}
-					tryed = true
-					goto TRY2
-				}
+				log.Panicln("filesession(encodeGob) error:", err)
 			}
 		}
 	}

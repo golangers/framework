@@ -1,3 +1,14 @@
+/*
+为避免任何隐藏麻烦，在Encode时如失败不会去尝试gob.Register注册，会直接报错。
+以免上一次Encode失败时尝试注册的的类型再Decode时不被识别到，而报错。
+顾在程序运行时，尽可能完整的做好测试，再遇到Encode出错时，预注册好此用户自定义类型
+注册方式可以：
+import "encoding/gob"
+func init() {
+	gob.Register([UserType的初始化])
+}
+*/
+
 package cookiesession
 
 import (
@@ -43,22 +54,10 @@ func decodeGob(encoded []byte) (map[string]interface{}, error) {
 }
 
 func encodeCookie(content map[string]interface{}, key, iv []byte) (string, error) {
-	var tryed bool
-TRY:
 	sessionGob, err := encodeGob(content)
 	if err != nil {
+		log.Panicln("cookiesession(encodeGob) error:", err)
 		return "", err
-	} else {
-		if tryed {
-			log.Panicln("cookiesession(encodeCookie) error:", err)
-		} else {
-			for _, v := range content {
-				gob.Register(v)
-			}
-
-			tryed = true
-			goto TRY
-		}
 	}
 
 	//实现动态填充,达到aes.BlockSize的倍数,+4是为了后面提供4个字节来保存字符串长度使用的
@@ -100,7 +99,7 @@ func decodeCookie(encodedCookie string, key, iv []byte) (map[string]interface{},
 	gobBytes := sessionBytes[4 : 4+gobLen]
 	session, err := decodeGob(gobBytes)
 	if err != nil {
-		log.Printf("decodeGob: %s\n", err)
+		log.Panicln("cookiesession(decodeGob) error:", err)
 		return nil, err
 	}
 	return session, nil
