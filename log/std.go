@@ -1,6 +1,7 @@
 package log
 
 import (
+	"io"
 	"os"
 )
 
@@ -12,6 +13,10 @@ func SetLevel(level int) {
 
 func SetFlags(flag int) {
 	std.SetFlags(flag)
+}
+
+func SetOutput(w io.Writer) {
+	std.SetOutput(w)
 }
 
 func Debug(v ...interface{}) {
