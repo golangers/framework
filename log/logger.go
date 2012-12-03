@@ -16,18 +16,19 @@ const (
 	// order they appear (the order listed here) or the format they present (as
 	// described in the comments).  A colon appears after these items:
 	//	[log] 2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
-	Ldate         = log.Ldate                            // the date: 2009/01/23
-	Ltime         = log.Ltime                            // the time: 01:23:23
-	Lmicroseconds = log.Lmicroseconds                    // microsecond resolution: 01:23:23.123123.  assumes Ltime.
-	Llongfile     = log.Llongfile                        // full file name and line number: /a/b/c/d.go:23
-	Lshortfile    = log.Lshortfile                       // final file name element and line number: d.go:23. overrides Llongfile
-	Lmodule       = log.Lshortfile << 1                  // module name: [log]
-	LstdFlags     = log.LstdFlags | Lshortfile | Lmodule // initial values for the standard logger
+	Ldate         = log.Ldate                             // the date: 2009/01/23
+	Ltime         = log.Ltime                             // the time: 01:23:23
+	Lmicroseconds = log.Lmicroseconds                     // microsecond resolution: 01:23:23.123123.  assumes Ltime.
+	Llongfile     = log.Llongfile                         // full file name and line number: /a/b/c/d.go:23
+	Lshortfile    = log.Lshortfile                        // final file name element and line number: d.go:23. overrides Llongfile
+	Lpackage      = log.Lshortfile << 1                   // package name: [log]
+	LstdFlags     = log.LstdFlags | Lshortfile | Lpackage // initial values for the standard logger
 )
 
 //日志级别
 const (
-	LEVEL_DEBUG = 1 << iota
+	LEVEL_DISABLE = 0 //关闭日志功能
+	LEVEL_DEBUG   = 1 << iota
 	LEVEL_INFO
 	LEVEL_WARN
 	LEVEL_ERROR
@@ -37,10 +38,22 @@ const (
 	LEVEL_ALL = LEVEL_DEBUG | LEVEL_INFO | LEVEL_WARN | LEVEL_ERROR | LEVEL_CRITICAL | LEVEL_PANIC | LEVEL_FATAL
 
 	//默认日志级别为
-	LEVEL_DEFAULT = LEVEL_ALL
+	LEVEL_DEFAULT = LEVEL_INFO
 )
 
 var (
+	LevelText = map[string]int{
+		"disable":  LEVEL_DISABLE,
+		"debug":    LEVEL_DEBUG,
+		"info":     LEVEL_INFO,
+		"warn":     LEVEL_WARN,
+		"error":    LEVEL_ERROR,
+		"critical": LEVEL_CRITICAL,
+		"panic":    LEVEL_PANIC,
+		"fatal":    LEVEL_FATAL,
+		"all":      LEVEL_ALL,
+	}
+
 	logPrefixs = map[int]string{
 		LEVEL_DEBUG:    "[DEBUG]",
 		LEVEL_INFO:     "[INFO]",
@@ -58,7 +71,7 @@ type Logger struct {
 	level int
 }
 
-func moduleOf(file string) string {
+func packageOf(file string) string {
 	pos := strings.LastIndex(file, "/")
 	if pos != -1 {
 		pos1 := strings.LastIndex(file[:pos], "/src/")
@@ -99,9 +112,9 @@ func (l *Logger) Levels() int {
 }
 
 func (l *Logger) Output(calldepth int, s string) error {
-	if Lmodule&l.level != 0 {
+	if Lpackage&l.level != 0 {
 		if _, file, _, ok := runtime.Caller(calldepth); ok {
-			l.SetPrefix(l.Prefix() + "[" + moduleOf(file) + "] ")
+			l.SetPrefix(l.Prefix() + "[" + packageOf(file) + "] ")
 		}
 	}
 

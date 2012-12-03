@@ -23,9 +23,9 @@ import (
 	//(1)
 	//"errors"
 	//(1)
+	"golanger.com/framework/log"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -219,7 +219,7 @@ func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[stri
 				if dm, err := decodeGob(content); err == nil {
 					m = dm
 				} else {
-					log.Panicln("filesession(decodeGob) error:", err)
+					log.Error("<SessionManager.Get> ", "decodeGob:", err)
 				}
 			}
 		}
@@ -239,7 +239,7 @@ func (s *SessionManager) Set(session map[string]interface{}, rw http.ResponseWri
 			if encodeSession, err := encodeGob(session); err == nil {
 				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
 			} else {
-				log.Panicln("filesession(encodeGob) error:", err)
+				log.Error("<SessionManager.Set> ", "encodeGob:", err)
 			}
 		} else {
 			s.Clear(sessionSign)
@@ -250,7 +250,7 @@ func (s *SessionManager) Set(session map[string]interface{}, rw http.ResponseWri
 				sessionSign := s.new(rw)
 				writeFile(s.sessionDir+sessionSign+".golanger", encodeSession)
 			} else {
-				log.Panicln("filesession(encodeGob) error:", err)
+				log.Error("<SessionManager.Set> ", "encodeGob:", err)
 			}
 		}
 	}
