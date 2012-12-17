@@ -5,8 +5,7 @@ func (l *Logger) Debug(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_DEBUG] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_DEBUG]+" ", v...)
 }
 
 func (l *Logger) Debugln(v ...interface{}) {
@@ -14,8 +13,7 @@ func (l *Logger) Debugln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_DEBUG] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_DEBUG]+" ", v...)
 }
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
@@ -23,8 +21,7 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_DEBUG] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_DEBUG]+" ", format, v...)
 }
 
 func (l *Logger) Info(v ...interface{}) {
@@ -32,8 +29,7 @@ func (l *Logger) Info(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_INFO] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_INFO]+" ", v...)
 }
 
 func (l *Logger) Infoln(v ...interface{}) {
@@ -41,8 +37,7 @@ func (l *Logger) Infoln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_INFO] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_INFO]+" ", v...)
 }
 
 func (l *Logger) Infof(format string, v ...interface{}) {
@@ -50,8 +45,7 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_INFO] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_INFO]+" ", format, v...)
 }
 
 func (l *Logger) Warn(v ...interface{}) {
@@ -59,8 +53,7 @@ func (l *Logger) Warn(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_WARN] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_WARN]+" ", v...)
 }
 
 func (l *Logger) Warnln(v ...interface{}) {
@@ -68,8 +61,7 @@ func (l *Logger) Warnln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_WARN] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_WARN]+" ", v...)
 }
 
 func (l *Logger) Warnf(format string, v ...interface{}) {
@@ -77,8 +69,7 @@ func (l *Logger) Warnf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_WARN] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_WARN]+" ", format, v...)
 }
 
 func (l *Logger) Error(v ...interface{}) {
@@ -86,8 +77,7 @@ func (l *Logger) Error(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_ERROR] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_ERROR]+" ", v...)
 }
 
 func (l *Logger) Errorln(v ...interface{}) {
@@ -95,8 +85,7 @@ func (l *Logger) Errorln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_ERROR] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_ERROR]+" ", v...)
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
@@ -104,8 +93,7 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_ERROR] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_ERROR]+" ", format, v...)
 }
 
 func (l *Logger) Critical(v ...interface{}) {
@@ -113,8 +101,7 @@ func (l *Logger) Critical(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_CRITICAL] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_CRITICAL]+" ", v...)
 }
 
 func (l *Logger) Criticalln(v ...interface{}) {
@@ -122,8 +109,7 @@ func (l *Logger) Criticalln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_CRITICAL] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_CRITICAL]+" ", v...)
 }
 
 func (l *Logger) Criticalf(format string, v ...interface{}) {
@@ -131,6 +117,5 @@ func (l *Logger) Criticalf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_CRITICAL] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_CRITICAL]+" ", format, v...)
 }

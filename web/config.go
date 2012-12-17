@@ -2,14 +2,16 @@ package web
 
 import (
 	"encoding/json"
+	"golanger.com/framework/log"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 )
 
 type Config struct {
-	Debug                     bool                   `json:"Debug"`
+	Log                       bool                   `json:"Log"`
+	LogWriteTo                string                 `json:"LogWriteTo"`
+	LogLevel                  string                 `json:"LogLevel"`
 	SupportTemplate           bool                   `json:"SupportTemplate"`
 	SupportSession            bool                   `json:"SupportSession"`
 	SupportCookieSession      bool                   `json:"SupportCookieSession"`
@@ -50,6 +52,7 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
+		LogWriteTo:              "console",
 		SessionType:             "memory",
 		RootStaticFiles:         "favicon.ico",
 		TemplateDirectory:       "./view/",
@@ -78,7 +81,7 @@ func NewConfig() Config {
 func (c *Config) format(configPath string) []byte {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal("<Config.format> ", err)
 	}
 
 	return regexp.MustCompile(`#.*\n`).ReplaceAll(data, []byte("\n"))
@@ -89,8 +92,8 @@ func (c *Config) Load(configPath string) {
 
 	err := json.Unmarshal(data, c)
 	if err != nil {
-		log.Println("jsonData:", string(data))
-		log.Panic(err)
+		log.Debug("<Config.Load> jsonData:", string(data))
+		log.Fatal("<Config.Load> ", err)
 	}
 
 	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory

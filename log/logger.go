@@ -16,18 +16,19 @@ const (
 	// order they appear (the order listed here) or the format they present (as
 	// described in the comments).  A colon appears after these items:
 	//	[log] 2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
-	Ldate         = log.Ldate                            // the date: 2009/01/23
-	Ltime         = log.Ltime                            // the time: 01:23:23
-	Lmicroseconds = log.Lmicroseconds                    // microsecond resolution: 01:23:23.123123.  assumes Ltime.
-	Llongfile     = log.Llongfile                        // full file name and line number: /a/b/c/d.go:23
-	Lshortfile    = log.Lshortfile                       // final file name element and line number: d.go:23. overrides Llongfile
-	Lmodule       = log.Lshortfile << 1                  // module name: [log]
-	LstdFlags     = log.LstdFlags | Lshortfile | Lmodule // initial values for the standard logger
+	Ldate         = log.Ldate                             // the date: 2009/01/23
+	Ltime         = log.Ltime                             // the time: 01:23:23
+	Lmicroseconds = log.Lmicroseconds                     // microsecond resolution: 01:23:23.123123.  assumes Ltime.
+	Llongfile     = log.Llongfile                         // full file name and line number: /a/b/c/d.go:23
+	Lshortfile    = log.Lshortfile                        // final file name element and line number: d.go:23. overrides Llongfile
+	Lpackage      = log.Lshortfile << 1                   // package name: [log]
+	LstdFlags     = log.LstdFlags | Lshortfile | Lpackage // initial values for the standard logger
 )
 
 //日志级别
 const (
-	LEVEL_DEBUG = 1 << iota
+	LEVEL_DISABLE = 0 //关闭日志功能
+	LEVEL_DEBUG   = 1 << iota
 	LEVEL_INFO
 	LEVEL_WARN
 	LEVEL_ERROR
@@ -37,10 +38,22 @@ const (
 	LEVEL_ALL = LEVEL_DEBUG | LEVEL_INFO | LEVEL_WARN | LEVEL_ERROR | LEVEL_CRITICAL | LEVEL_PANIC | LEVEL_FATAL
 
 	//默认日志级别为
-	LEVEL_DEFAULT = LEVEL_ALL
+	LEVEL_DEFAULT = LEVEL_INFO
 )
 
 var (
+	LevelText = map[string]int{
+		"disable":  LEVEL_DISABLE,
+		"debug":    LEVEL_DEBUG,
+		"info":     LEVEL_INFO,
+		"warn":     LEVEL_WARN,
+		"error":    LEVEL_ERROR,
+		"critical": LEVEL_CRITICAL,
+		"panic":    LEVEL_PANIC,
+		"fatal":    LEVEL_FATAL,
+		"all":      LEVEL_ALL,
+	}
+
 	logPrefixs = map[int]string{
 		LEVEL_DEBUG:    "[DEBUG]",
 		LEVEL_INFO:     "[INFO]",
@@ -58,7 +71,7 @@ type Logger struct {
 	level int
 }
 
-func moduleOf(file string) string {
+func packageOf(file string) string {
 	pos := strings.LastIndex(file, "/")
 	if pos != -1 {
 		pos1 := strings.LastIndex(file[:pos], "/src/")
@@ -99,9 +112,9 @@ func (l *Logger) Levels() int {
 }
 
 func (l *Logger) Output(calldepth int, s string) error {
-	if Lmodule&l.level != 0 {
+	if Lpackage&l.level != 0 {
 		if _, file, _, ok := runtime.Caller(calldepth); ok {
-			l.SetPrefix(l.Prefix() + "[" + moduleOf(file) + "] ")
+			l.SetPrefix(l.Prefix() + "[" + packageOf(file) + "] ")
 		}
 	}
 
@@ -110,22 +123,46 @@ func (l *Logger) Output(calldepth int, s string) error {
 	return l.Logger.Output(calldepth, s)
 }
 
-func (l *Logger) Print(v ...interface{}) {
+func (l *Logger) print(prefix string, v ...interface{}) {
 	//又包了2层
 	localCalldepth := 2 + 2
-	l.Output(localCalldepth, fmt.Sprint(v...))
+	s := fmt.Sprint(v...)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.SetPrefix(prefix)
+	l.Output(localCalldepth, s)
+}
+
+func (l *Logger) println(prefix string, v ...interface{}) {
+	//又包了2层
+	localCalldepth := 2 + 2
+	s := fmt.Sprintln(v...)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.SetPrefix(prefix)
+	l.Output(localCalldepth, s)
+}
+
+func (l *Logger) printf(prefix string, format string, v ...interface{}) {
+	//又包了2层
+	localCalldepth := 2 + 2
+	s := fmt.Sprintf(format, v...)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.SetPrefix(prefix)
+	l.Output(localCalldepth, s)
+}
+
+func (l *Logger) Print(v ...interface{}) {
+	l.print("", v...)
 }
 
 func (l *Logger) Println(v ...interface{}) {
-	//又包了2层
-	localCalldepth := 2 + 2
-	l.Output(localCalldepth, fmt.Sprintln(v...))
+	l.println("", v...)
 }
 
 func (l *Logger) Printf(format string, v ...interface{}) {
-	//又包了2层
-	localCalldepth := 2 + 2
-	l.Output(localCalldepth, fmt.Sprintf(format, v...))
+	l.printf("", format, v...)
 }
 
 func (l *Logger) Panic(v ...interface{}) {
@@ -133,12 +170,8 @@ func (l *Logger) Panic(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_PANIC] + " ")
-	s := fmt.Sprint(v...)
-	//又包了1层
-	localCalldepth := 2 + 1
-	l.Output(localCalldepth, s)
-	panic(s)
+	l.print(logPrefixs[LEVEL_PANIC]+" ", v...)
+	panic(fmt.Sprint(v...))
 }
 
 func (l *Logger) Panicln(v ...interface{}) {
@@ -146,12 +179,8 @@ func (l *Logger) Panicln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_PANIC] + " ")
-	s := fmt.Sprintln(v...)
-	//又包了1层
-	localCalldepth := 2 + 1
-	l.Output(localCalldepth, s)
-	panic(s)
+	l.println(logPrefixs[LEVEL_PANIC]+" ", v...)
+	panic(fmt.Sprintln(v...))
 }
 
 func (l *Logger) Panicf(format string, v ...interface{}) {
@@ -159,12 +188,8 @@ func (l *Logger) Panicf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_PANIC] + " ")
-	s := fmt.Sprintf(format, v...)
-	//又包了1层
-	localCalldepth := 2 + 1
-	l.Output(localCalldepth, s)
-	panic(s)
+	l.printf(logPrefixs[LEVEL_PANIC]+" ", format, v...)
+	panic(fmt.Sprintf(format, v...))
 }
 
 func (l *Logger) Fatal(v ...interface{}) {
@@ -172,8 +197,7 @@ func (l *Logger) Fatal(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_FATAL] + " ")
-	l.Print(v...)
+	l.print(logPrefixs[LEVEL_FATAL]+" ", v...)
 	os.Exit(1)
 }
 
@@ -182,8 +206,7 @@ func (l *Logger) Fatalln(v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_FATAL] + " ")
-	l.Println(v...)
+	l.println(logPrefixs[LEVEL_FATAL]+" ", v...)
 	os.Exit(1)
 }
 
@@ -192,7 +215,6 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 		return
 	}
 
-	l.SetPrefix(logPrefixs[LEVEL_FATAL] + " ")
-	l.Printf(format, v...)
+	l.printf(logPrefixs[LEVEL_FATAL]+" ", format, v...)
 	os.Exit(1)
 }

@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/gob"
-	"log"
+	"golanger.com/framework/log"
 	"net/http"
 	"strings"
 	"time"
@@ -60,7 +60,7 @@ func decodeGob(encoded []byte) (map[string]interface{}, error) {
 func encodeCookie(content map[string]interface{}, key, iv []byte) (string, error) {
 	sessionGob, err := encodeGob(content)
 	if err != nil {
-		log.Panicln("cookiesession(encodeGob) error:", err)
+		log.Error("<encodeCookie> ", err)
 		return "", err
 	}
 
@@ -85,12 +85,12 @@ func encodeCookie(content map[string]interface{}, key, iv []byte) (string, error
 func decodeCookie(encodedCookie string, key, iv []byte) (map[string]interface{}, error) {
 	sessionBytes, err := base64.URLEncoding.DecodeString(encodedCookie)
 	if err != nil {
-		log.Printf("base64.Decodestring: %s\n", err)
+		log.Error("<decodeCookie> ", "base64.Decodestring:", err)
 		return nil, err
 	}
 	aesCipher, err := aes.NewCipher(key)
 	if err != nil {
-		log.Printf("aes.NewCipher: %s\n", err)
+		log.Error("<decodeCookie> ", "aes.NewCipher:", err)
 		return nil, err
 	}
 
@@ -103,7 +103,7 @@ func decodeCookie(encodedCookie string, key, iv []byte) (map[string]interface{},
 	gobBytes := sessionBytes[4 : 4+gobLen]
 	session, err := decodeGob(gobBytes)
 	if err != nil {
-		log.Panicln("cookiesession(decodeGob) error:", err)
+		log.Error("<decodeCookie> ", "decodeGob:", err)
 		return nil, err
 	}
 	return session, nil

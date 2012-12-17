@@ -1,8 +1,8 @@
 package web
 
 import (
+	"golanger.com/framework/log"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"text/template"
@@ -36,7 +36,7 @@ func (s *site) AddTemplateFunc(name string, i interface{}) {
 	if !ok {
 		s.templateFunc[name] = i
 	} else {
-		log.Println("func:" + name + " be added,do not repeat to add")
+		log.Warn("<site.AddTemplateFunc> ", "func:"+name+" be added,do not repeat to add")
 	}
 }
 
