@@ -8,7 +8,7 @@ import (
 	"golanger.com/framework/i18n"
 	"golanger.com/framework/log"
 	"golanger.com/framework/session"
-	"golanger.com/framework/validator"
+	"golanger.com/framework/validate"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -43,7 +43,7 @@ type Page struct {
 	FileSession         *filesession.SessionManager
 	CookieSession       *cookiesession.SessionManager
 	I18n                *i18n.I18nManager
-	Validation          validator.Validation
+	Validation          validate.Validation
 	currentPath         string
 	currentFileName     string
 }

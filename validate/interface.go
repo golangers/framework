@@ -1,4 +1,4 @@
-package validator
+package validate
 
 type Validator interface {
 	IsSatisfied(interface{}) bool
