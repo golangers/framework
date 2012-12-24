@@ -1,15 +1,21 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
-	"golanger.com/framework/log"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
 )
 
+var (
+	regexpNote  *regexp.Regexp = regexp.MustCompile(`#.*`)
+	regexpSpace *regexp.Regexp = regexp.MustCompile(`[\n\v\f\r]*`)
+)
+
 type Config struct {
-	Log                       bool                   `json:"Log"`
+	SupportLog                bool                   `json:"SupportLog"`
 	LogWriteTo                string                 `json:"LogWriteTo"`
 	LogLevel                  string                 `json:"LogLevel"`
 	SupportTemplate           bool                   `json:"SupportTemplate"`
@@ -17,6 +23,7 @@ type Config struct {
 	SupportCookieSession      bool                   `json:"SupportCookieSession"`
 	SupportI18n               bool                   `json:"SupportI18n"`
 	SupportStatic             bool                   `json:"SupportStatic"`
+	SupportUrlManage          bool                   `json:"SupportUrlManage"`
 	SessionType               string                 `json:"SessionType"`
 	RootStaticFiles           string                 `json:"RootStaticFiles"`
 	DefaultLanguage           string                 `json:"DefaultLanguage"`
@@ -45,8 +52,9 @@ type Config struct {
 	SiteRoot                  string                 `json:"SiteRoot"`
 	Environment               map[string]string      `json:"Environment"`
 	Database                  map[string]string      `json:"Database"`
+	UrlManageRule             []string               `json:"UrlManageRule"`
 	M                         map[string]interface{} `json:"Custom"`
-	configPath                string
+	configDir                 string
 	configLastModTime         int64
 }
 
@@ -75,25 +83,61 @@ func NewConfig() Config {
 		SiteRoot:                "/",
 		Environment:             map[string]string{},
 		Database:                map[string]string{},
+		UrlManageRule:           []string{},
 	}
 }
 
 func (c *Config) format(configPath string) []byte {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Fatal("<Config.format> ", err)
+		fmt.Println("<Config.format> ")
+		panic(err)
 	}
 
-	return regexp.MustCompile(`#.*\n`).ReplaceAll(data, []byte("\n"))
+	return regexpSpace.ReplaceAll(regexpNote.ReplaceAll(data, []byte(``)), []byte(``))
 }
 
-func (c *Config) Load(configPath string) {
-	data := c.format(configPath)
+func (c *Config) readDir(configDir string) []byte {
+	fis, err := ioutil.ReadDir(configDir)
+	if err != nil {
+		fmt.Println("<Config.readDir> ")
+		panic(err)
+	}
 
+	lfis := len(fis)
+	chContent := make(chan []byte, lfis)
+
+	for _, fi := range fis {
+		go func(chContent chan []byte, configPath string) {
+			chContent <- c.format(configPath)
+		}(chContent, configDir+"/"+fi.Name())
+	}
+
+	contentBuf := bytes.NewBufferString(`{`)
+	for i := 1; i <= lfis; i++ {
+		content := <-chContent
+		if len(content) == 0 {
+			continue
+		}
+
+		contentBuf.Write(content)
+		if i < lfis {
+			contentBuf.WriteString(",")
+		}
+	}
+
+	contentBuf.WriteString(`}`)
+
+	return contentBuf.Bytes()
+}
+
+func (c *Config) Load(configDir string) {
+	data := c.readDir(configDir)
 	err := json.Unmarshal(data, c)
 	if err != nil {
-		log.Debug("<Config.Load> jsonData:", string(data))
-		log.Fatal("<Config.Load> ", err)
+		fmt.Println("<Config.Load> jsonData:", string(data))
+		fmt.Println("<Config.Load> ")
+		panic(err)
 	}
 
 	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
@@ -102,20 +146,20 @@ func (c *Config) Load(configPath string) {
 	c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
 	c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
 
-	c.configPath = configPath
-	dataFi, _ := os.Stat(configPath)
+	c.configDir = configDir
+	dataFi, _ := os.Stat(configDir)
 	c.configLastModTime = dataFi.ModTime().Unix()
 }
 
 func (c *Config) Reload() bool {
 	var b bool
-	configPath := c.configPath
-	dataFi, _ := os.Stat(configPath)
+	configDir := c.configDir
+	dataFi, _ := os.Stat(configDir)
 	if dataFi.ModTime().Unix() > c.configLastModTime {
-		data := c.format(configPath)
+		data := c.readDir(configDir)
 		*c = NewConfig()
 		json.Unmarshal(data, c)
-		c.configPath = configPath
+		c.configDir = configDir
 		c.configLastModTime = dataFi.ModTime().Unix()
 		c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
 		c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
