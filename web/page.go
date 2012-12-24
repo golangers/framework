@@ -8,6 +8,7 @@ import (
 	"golanger.com/framework/i18n"
 	"golanger.com/framework/log"
 	"golanger.com/framework/session"
+	"golanger.com/framework/urlmanage"
 	"golanger.com/framework/validate"
 	"io/ioutil"
 	"net/http"
@@ -44,6 +45,7 @@ type Page struct {
 	CookieSession       *cookiesession.SessionManager
 	I18n                *i18n.I18nManager
 	Validation          validate.Validation
+	UrlManage           *urlmanage.UrlManage
 	currentPath         string
 	currentFileName     string
 }
@@ -87,6 +89,7 @@ func NewPage(param PageParam) Page {
 		FileSession:   filesession.New(param.CookieName, param.Expires, param.SessionDir, param.TimerDuration),
 		CookieSession: cookiesession.New(param.CookieSessionName, param.CookieSessionKey),
 		I18n:          i18n.New(param.I18nName),
+		UrlManage:     urlmanage.New(),
 	}
 }
 
@@ -225,7 +228,8 @@ func (p *Page) setGlobalTpl(globalTplModTime int64, reset bool) {
 }
 
 func (p *Page) reset(update bool) {
-	p.setLog(p.Config.Log, p.Config.LogWriteTo, p.Config.LogLevel)
+	p.setLog(p.Config.SupportLog, p.Config.LogWriteTo, p.Config.LogLevel)
+	p.setUrlManage(p.Config.SupportUrlManage, p.Config.UrlManageRule)
 
 	if update {
 		if p.site.supportSession != p.Config.SupportSession {
@@ -297,6 +301,20 @@ func (p *Page) reset(update bool) {
 		log.Error("<Page.reset> ", err)
 	} else {
 		p.setGlobalTpl(globalTplFi.ModTime().Unix(), false)
+	}
+}
+
+func (p *Page) setUrlManage(manage bool, rules []string) {
+	if !manage {
+		p.UrlManage.Stop()
+	} else {
+		if len(rules) == 0 {
+			p.UrlManage.Stop()
+		} else {
+			p.UrlManage.Start()
+			ruleContent := strings.Join(rules, "\n")
+			p.UrlManage.LoadRule(ruleContent, true)
+		}
 	}
 }
 
@@ -804,6 +822,16 @@ func (p *Page) handleRoute(i interface{}) {
 			p.reset(true)
 		}
 
+		if p.UrlManage.Manage() {
+			newUrl := p.UrlManage.ReWrite(w, r)
+			if newUrl == "redirect" {
+				p.site.base.mutex.Unlock()
+				return
+			} else {
+				r.URL, _ = url.Parse(newUrl)
+			}
+		}
+
 		if p.site.supportI18n {
 			if err := p.I18n.Setup(p.Config.DefaultLocalePath, p.Config.DefaultLanguage); err != nil {
 				log.Panic("<Page.handleRoute> ", "I18n(Setup):", err)
@@ -830,95 +858,5 @@ func (p *Page) ListenAndServe(addr string, i interface{}) {
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Fatal("<Page.ListenAndServe> ", err)
-	}
-}
-
-/*
-cookie[0] => name string
-cookie[1] => value string
-cookie[2] => expires string
-cookie[3] => path string
-cookie[4] => domain string
-cookie[5] => httpOnly bool
-cookie[6] => secure bool
-*/
-func (p *Page) SetCookie(w http.ResponseWriter, args ...interface{}) {
-	if len(args) < 2 {
-		return
-	}
-
-	const LEN = 7
-	var cookie = [LEN]interface{}{}
-
-	for k, v := range args {
-		if k >= LEN {
-			break
-		}
-
-		cookie[k] = v
-	}
-
-	var (
-		name     string
-		value    string
-		expires  int
-		path     string
-		domain   string
-		httpOnly bool
-		secure   bool
-	)
-
-	if v, ok := cookie[0].(string); ok {
-		name = v
-	} else {
-		return
-	}
-
-	if v, ok := cookie[1].(string); ok {
-		value = v
-	} else {
-		return
-	}
-
-	if v, ok := cookie[2].(int); ok {
-		expires = v
-	}
-
-	if v, ok := cookie[3].(string); ok {
-		path = v
-	}
-
-	if v, ok := cookie[4].(string); ok {
-		domain = v
-	}
-
-	if v, ok := cookie[5].(bool); ok {
-		httpOnly = v
-	}
-
-	if v, ok := cookie[6].(bool); ok {
-		secure = v
-	}
-
-	pCookie := &http.Cookie{
-		Name:     name,
-		Value:    url.QueryEscape(value),
-		Path:     path,
-		Domain:   domain,
-		HttpOnly: httpOnly,
-		Secure:   secure,
-	}
-
-	if expires > 0 {
-		d, _ := time.ParseDuration(strconv.Itoa(expires) + "s")
-		pCookie.Expires = time.Now().Add(d)
-	}
-
-	http.SetCookie(w, pCookie)
-
-	if expires > 0 {
-		p.COOKIE[pCookie.Name] = pCookie.Value
-	} else {
-		delete(p.COOKIE, pCookie.Name)
 	}
 }
