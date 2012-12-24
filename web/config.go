@@ -3,7 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"golanger.com/framework/log"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -90,8 +90,7 @@ func NewConfig() Config {
 func (c *Config) format(configPath string) []byte {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		fmt.Println("<Config.format> ")
-		panic(err)
+		log.Fatal("<Config.format> error: ", err)
 	}
 
 	return regexpSpace.ReplaceAll(regexpNote.ReplaceAll(data, []byte(``)), []byte(``))
@@ -100,8 +99,7 @@ func (c *Config) format(configPath string) []byte {
 func (c *Config) readDir(configDir string) []byte {
 	fis, err := ioutil.ReadDir(configDir)
 	if err != nil {
-		fmt.Println("<Config.readDir> ")
-		panic(err)
+		log.Fatal("<Config.readDir> error: ", err)
 	}
 
 	lfis := len(fis)
@@ -135,9 +133,8 @@ func (c *Config) Load(configDir string) {
 	data := c.readDir(configDir)
 	err := json.Unmarshal(data, c)
 	if err != nil {
-		fmt.Println("<Config.Load> jsonData:", string(data))
-		fmt.Println("<Config.Load> ")
-		panic(err)
+		log.Debug("<Config.Load> jsonData: ", string(data))
+		log.Fatal("<Config.Load> error: ", err)
 	}
 
 	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
