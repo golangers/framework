@@ -109,6 +109,8 @@ func readFile(filePath string) ([]byte, error) {
 }
 
 func writeFile(filePath string, content []byte) error {
+	var tryed bool
+	TRY:
 	//(1)
 	//由于跨程序共享session使用的是Gob，在session中有用户自定义类型时，如果另一程序未预先注册此UserType,会报错
 	//因此，暂不考虑跨程序共享session时的资源互斥问题，顾以下代码先注释
@@ -139,6 +141,13 @@ func writeFile(filePath string, content []byte) error {
 	err := ioutil.WriteFile(filePath, content, os.ModePerm)
 	sessionLock.Unlock()
 	//(2)
+
+	if !tryed && err != nil {
+		tryed = true
+		sessionDir := filepath.Dir(filePath)
+		os.MkdirAll(sessionDir, 0777)
+		goto TRY
+	}
 
 	return err
 }
@@ -171,8 +180,6 @@ func New(cookieName string, expires int, sessionDir string, timerDuration string
 	if sessionDir == "" {
 		sessionDir = "./tmp/" + "golangersession/"
 	}
-
-	os.MkdirAll(sessionDir, 0777)
 
 	var dTimerDuration time.Duration
 
