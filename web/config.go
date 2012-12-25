@@ -148,7 +148,7 @@ func (c *Config) load(data []byte) {
 }
 
 func (c *Config) LoadData(data string) {
-	c.load([]byte(data))
+	c.load([]byte("{"+data+"}"))
 }
 
 func (c *Config) Load(configDir string) {
