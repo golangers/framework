@@ -154,6 +154,7 @@ func (c *Config) LoadData(data string) {
 func (c *Config) Load(configDir string) {
 	data := c.readDir(configDir)
 	c.load(data)
+	c.configDir = configDir
 	dataFi, _ := os.Stat(c.configDir)
 	c.configLastModTime = dataFi.ModTime().Unix()
 }
@@ -161,19 +162,24 @@ func (c *Config) Load(configDir string) {
 func (c *Config) Reload() bool {
 	var b bool
 	configDir := c.configDir
-	dataFi, _ := os.Stat(configDir)
-	if dataFi.ModTime().Unix() > c.configLastModTime {
-		data := c.readDir(configDir)
-		*c = NewConfig()
-		json.Unmarshal(data, c)
-		c.configDir = configDir
-		c.configLastModTime = dataFi.ModTime().Unix()
-		c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
-		c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
-		c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
-		c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
-		c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
-		b = true
+	if configDir == "" {
+		return false
+	}
+	
+	if dataFi, err := os.Stat(configDir); err == nil {
+		if dataFi.ModTime().Unix() > c.configLastModTime {
+			data := c.readDir(configDir)
+			*c = NewConfig()
+			json.Unmarshal(data, c)
+			c.configDir = configDir
+			c.configLastModTime = dataFi.ModTime().Unix()
+			c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
+			c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
+			c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
+			c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
+			c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
+			b = true
+		}
 	}
 
 	return b

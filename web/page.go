@@ -190,6 +190,11 @@ func (p *Page) GetController(urlPath string) interface{} {
 	return i
 }
 
+func (p *Page) LoadData(data string) {
+	p.Config.LoadData(data)
+	p.reset(false)
+}
+
 func (p *Page) Load(configPath string) {
 	p.Config.Load(configPath)
 	p.reset(false)
