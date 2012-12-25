@@ -133,8 +133,7 @@ func (c *Config) readDir(configDir string) []byte {
 	return contentBuf.Bytes()
 }
 
-func (c *Config) Load(configDir string) {
-	data := c.readDir(configDir)
+func (c *Config) load(data []byte) {
 	err := json.Unmarshal(data, c)
 	if err != nil {
 		log.Debug("<Config.Load> jsonData: ", string(data))
@@ -146,9 +145,16 @@ func (c *Config) Load(configDir string) {
 	c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
 	c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
 	c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
+}
 
-	c.configDir = configDir
-	dataFi, _ := os.Stat(configDir)
+func (c *Config) LoadData(data string) {
+	c.load([]byte(data))
+}
+
+func (c *Config) Load(configDir string) {
+	data := c.readDir(configDir)
+	c.load(data)
+	dataFi, _ := os.Stat(c.configDir)
 	c.configLastModTime = dataFi.ModTime().Unix()
 }
 
