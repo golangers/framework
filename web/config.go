@@ -103,12 +103,14 @@ func (c *Config) readDir(configDir string) []byte {
 	}
 
 	lfis := len(fis)
-	chContent := make(chan []byte, lfis)
+	chContent := make(chan []byte, 0, lfis)
 
 	for _, fi := range fis {
-		go func(chContent chan []byte, configPath string) {
-			chContent <- c.format(configPath)
-		}(chContent, configDir+"/"+fi.Name())
+		if !fi.IsDir() {
+			go func(chContent chan []byte, configPath string) {
+				chContent <- c.format(configPath)
+			}(chContent, configDir+"/"+fi.Name())
+		}
 	}
 
 	contentBuf := bytes.NewBufferString(`{`)
