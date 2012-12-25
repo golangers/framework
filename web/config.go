@@ -93,7 +93,7 @@ func (c *Config) format(configPath string) []byte {
 		log.Fatal("<Config.format> error: ", err)
 	}
 
-	return regexpSpace.ReplaceAll(regexpNote.ReplaceAll(data, []byte(``)), []byte(``))
+	return bytes.TrimSpace(regexpSpace.ReplaceAll(regexpNote.ReplaceAll(data, []byte(``)), []byte(``)))
 }
 
 func (c *Config) readDir(configDir string) []byte {
@@ -103,10 +103,12 @@ func (c *Config) readDir(configDir string) []byte {
 	}
 
 	lfis := len(fis)
-	chContent := make(chan []byte, 0, lfis)
+	chContent := make(chan []byte, lfis)
 
 	for _, fi := range fis {
-		if !fi.IsDir() {
+		if fi.IsDir() {
+			lfis--
+		} else {
 			go func(chContent chan []byte, configPath string) {
 				chContent <- c.format(configPath)
 			}(chContent, configDir+"/"+fi.Name())
