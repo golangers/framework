@@ -799,6 +799,16 @@ func (p *Page) handleRootStatic(files string) {
 func (p *Page) handleStatic() {
 	StaticHtmlDir := p.Config.SiteRoot + p.Config.HtmlDirectory
 	http.HandleFunc(StaticHtmlDir, func(w http.ResponseWriter, r *http.Request) {
+		if p.UrlManage.Manage() {
+			newUrl := p.UrlManage.ReWrite(w, r)
+			if newUrl == "redirect" {
+				p.site.base.mutex.Unlock()
+				return
+			} else {
+				r.URL, _ = url.Parse(newUrl)
+			}
+		}
+		
 		staticPath := p.Config.AssetsDirectory + p.Config.HtmlDirectory + r.URL.Path[len(StaticHtmlDir):]
 		if r.URL.RawQuery != "" {
 			staticPath += "?" + r.URL.RawQuery
