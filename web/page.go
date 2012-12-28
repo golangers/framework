@@ -99,6 +99,7 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.site.base.mutex.Unlock()
 
 	p.site.base.rmutex.RLock()
+	defer p.site.base.rmutex.RUnlock()
 	p.GET = p.site.base.getHttpGet(r)
 	p.POST = p.site.base.getHttpPost(r, p.MAX_FORM_SIZE)
 	p.COOKIE = p.site.base.getHttpCookie(r)
@@ -144,7 +145,6 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	p.site.base.rmutex.RUnlock()
 }
 
 func (p *Page) SetDefaultController(i interface{}) *Page {
@@ -478,7 +478,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 	log.Debug("<Page.routeController> ", "ppc.Config.LoadStaticHtmlWithLogic:", ppc.Config.LoadStaticHtmlWithLogic)
 	log.Debug("<Page.routeController> ", "ppc.Config.AutoGenerateHtml:", ppc.Config.AutoGenerateHtml)
 
-	if !ppc.Config.LoadStaticHtmlWithLogic && ppc.Config.AutoGenerateHtml {
+	if !ppc.Config.LoadStaticHtmlWithLogic && !ppc.Document.GenerateHtml && ppc.Config.AutoGenerateHtml {
 		tplFi, tplErr := os.Stat(ppc.Config.TemplateDirectory + ppc.Config.ThemeDirectory + ppc.Template)
 		if tplErr != nil {
 			log.Error("<Page.routeController> ", tplErr)
@@ -512,6 +512,8 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 
 			htmlContent, err := ioutil.ReadFile(htmlFile)
 			if err == nil {
+				w.Header().Add("Content-Length", strconv.FormatInt(htmlFi.Size(), 10))
+				w.Header().Add("Last-Modified", htmlFi.ModTime().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 				w.Write(htmlContent)
 				return
 			} else {
@@ -579,7 +581,7 @@ DO_ROUTER:
 func (p *Page) setStaticDocument() {
 	fileNameNoExt := p.currentFileName[:len(p.currentFileName)-len(filepath.Ext(p.currentFileName))]
 	p.site.base.rmutex.RLock()
-	p.site.base.rmutex.RUnlock()
+	defer p.site.base.rmutex.RUnlock()
 
 	cssFi, cssErr := os.Stat(p.Config.StaticCssDirectory + p.currentPath)
 	jsFi, jsErr := os.Stat(p.Config.StaticJsDirectory + p.currentPath)
@@ -730,7 +732,9 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 							log.Error("<Page.routeTemplate> ", err)
 						} else {
 							if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
+								p.site.base.rmutex.RLock()
 								templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
+								p.site.base.rmutex.RUnlock()
 							}
 
 							pageTemplate.Execute(file, templateVar)
@@ -739,7 +743,7 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 
 					if p.Config.AutoJumpToHtml {
 						p.site.base.rmutex.RLock()
-						http.Redirect(w, r, p.site.Root+htmlFile[2:], http.StatusFound)
+						http.Redirect(w, r, p.site.Root+htmlFile[len(p.Config.AssetsDirectory):], http.StatusFound)
 						p.site.base.rmutex.RUnlock()
 					} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
 						htmlContent, err := ioutil.ReadFile(htmlFile)
@@ -802,6 +806,24 @@ func (p *Page) handleRootStatic(files string) {
 }
 
 func (p *Page) handleStatic() {
+	http.HandleFunc(p.Document.Static, func(w http.ResponseWriter, r *http.Request) {
+		if p.UrlManage.Manage() {
+			newUrl := p.UrlManage.ReWrite(w, r)
+			if newUrl == "redirect" {
+				p.site.base.mutex.Unlock()
+				return
+			} else {
+				r.URL, _ = url.Parse(newUrl)
+			}
+		}
+
+		staticPath := p.Config.AssetsDirectory + p.Config.StaticDirectory + r.URL.Path[len(p.Document.Static):]
+		log.Debug("<Page.handleStatic> ", "staticPath:", staticPath)
+		http.ServeFile(w, r, staticPath)
+	})
+}
+
+func (p *Page) handleStaticHtml() {
 	StaticHtmlDir := p.Config.SiteRoot + p.Config.HtmlDirectory
 	http.HandleFunc(StaticHtmlDir, func(w http.ResponseWriter, r *http.Request) {
 		if p.UrlManage.Manage() {
@@ -813,18 +835,12 @@ func (p *Page) handleStatic() {
 				r.URL, _ = url.Parse(newUrl)
 			}
 		}
-		
+
 		staticPath := p.Config.AssetsDirectory + p.Config.HtmlDirectory + r.URL.Path[len(StaticHtmlDir):]
 		if r.URL.RawQuery != "" {
 			staticPath += "?" + r.URL.RawQuery
 		}
 
-		log.Debug("<Page.handleStatic> ", "staticPath:", staticPath)
-		http.ServeFile(w, r, staticPath)
-	})
-
-	http.HandleFunc(p.Document.Static, func(w http.ResponseWriter, r *http.Request) {
-		staticPath := p.Config.AssetsDirectory + p.Config.StaticDirectory + r.URL.Path[len(p.Document.Static):]
 		log.Debug("<Page.handleStatic> ", "staticPath:", staticPath)
 		http.ServeFile(w, r, staticPath)
 	})
@@ -866,6 +882,10 @@ func (p *Page) ListenAndServe(addr string, i interface{}) {
 	if p.Config.SupportStatic {
 		p.handleRootStatic(p.Config.RootStaticFiles)
 		p.handleStatic()
+	}
+
+	if p.Config.AccessHtml {
+		p.handleStaticHtml()
 	}
 
 	p.handleRoute(i)

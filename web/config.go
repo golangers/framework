@@ -33,6 +33,7 @@ type Config struct {
 	AutoLoadStaticHtml        bool                   `json:"AutoLoadStaticHtml"`
 	LoadStaticHtmlWithLogic   bool                   `json:"LoadStaticHtmlWithLogic"`
 	ChangeSiteRoot            bool                   `json:"ChangeSiteRoot"`
+	AccessHtml                bool                   `json:"AccessHtml"`
 	AutoJumpToHtml            bool                   `json:"AutoJumpToHtml"`
 	AssetsDirectory           string                 `json:"AssetsDirectory"`
 	StaticDirectory           string                 `json:"StaticDirectory"`
@@ -150,7 +151,7 @@ func (c *Config) load(data []byte) {
 }
 
 func (c *Config) LoadData(data string) {
-	c.load([]byte("{"+data+"}"))
+	c.load([]byte("{" + data + "}"))
 }
 
 func (c *Config) Load(configDir string) {
@@ -167,7 +168,7 @@ func (c *Config) Reload() bool {
 	if configDir == "" {
 		return false
 	}
-	
+
 	if dataFi, err := os.Stat(configDir); err == nil {
 		if dataFi.ModTime().Unix() > c.configLastModTime {
 			data := c.readDir(configDir)
