@@ -106,13 +106,15 @@ func (c *Config) readDir(configDir string) []byte {
 	chContent := make(chan []byte, lfis)
 
 	for _, fi := range fis {
-		if fi.IsDir() {
+		fiName := fi.Name()
+		if fi.IsDir() || fiName[0] == '.' {
 			lfis--
-		} else {
-			go func(chContent chan []byte, configPath string) {
-				chContent <- c.format(configPath)
-			}(chContent, configDir+"/"+fi.Name())
+			continue
 		}
+
+		go func(chContent chan []byte, configPath string) {
+			chContent <- c.format(configPath)
+		}(chContent, configDir+"/"+fiName)
 	}
 
 	contentBuf := bytes.NewBufferString(`{`)
