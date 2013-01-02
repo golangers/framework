@@ -76,8 +76,7 @@ func NewPage(param PageParam) Page {
 			Version:       strconv.Itoa(time.Now().Year()),
 		},
 		Controller: map[string]interface{}{},
-
-		Config: NewConfig(),
+		Config:     NewConfig(),
 		Document: Document{
 			Css:  map[string]string{},
 			Js:   map[string]string{},
@@ -492,7 +491,6 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		}
 
 		htmlFile := ""
-		ppc.site.base.rmutex.RLock()
 		assetsHtmlDir := ppc.Config.AssetsDirectory + ppc.Config.HtmlDirectory
 		if strings.HasPrefix(ppc.Template, ppc.Config.IndexDirectory) {
 			htmlFile = assetsHtmlDir + strings.Replace(ppc.Template, ppc.Config.IndexDirectory, "", 1)
@@ -504,7 +502,6 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 			htmlFile += "?" + r.URL.RawQuery
 		}
 
-		ppc.site.base.rmutex.RUnlock()
 		if htmlFi, htmlErr := os.Stat(htmlFile); htmlErr == nil {
 			if ppc.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
 				goto DO_ROUTER
@@ -580,8 +577,6 @@ DO_ROUTER:
 
 func (p *Page) setStaticDocument() {
 	fileNameNoExt := p.currentFileName[:len(p.currentFileName)-len(filepath.Ext(p.currentFileName))]
-	p.site.base.rmutex.RLock()
-	defer p.site.base.rmutex.RUnlock()
 
 	cssFi, cssErr := os.Stat(p.Config.StaticCssDirectory + p.currentPath)
 	jsFi, jsErr := os.Stat(p.Config.StaticJsDirectory + p.currentPath)
@@ -674,8 +669,8 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 			}
 
 			globalTemplate, _ := p.site.globalTemplate.Clone()
-			pageTemplate, err := globalTemplate.New(filepath.Base(p.Template)).Parse(tmplCache.Content)
 			p.site.base.rmutex.RUnlock()
+			pageTemplate, err := globalTemplate.New(filepath.Base(p.Template)).Parse(tmplCache.Content)
 
 			if err != nil {
 				log.Error("<Page.routeTemplate> ", err)
@@ -707,7 +702,6 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 					}
 				} else {
 					htmlFile := ""
-					p.site.base.rmutex.RLock()
 					assetsHtmlDir := p.Config.AssetsDirectory + p.Config.HtmlDirectory
 					if strings.HasPrefix(p.Template, p.Config.IndexDirectory) {
 						htmlFile = assetsHtmlDir + strings.Replace(p.Template, p.Config.IndexDirectory, "", 1)
@@ -719,7 +713,6 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 						htmlFile += "?" + r.URL.RawQuery
 					}
 
-					p.site.base.rmutex.RUnlock()
 					htmlDir := filepath.Dir(htmlFile)
 					if htmlDirFi, err := os.Stat(htmlDir); err != nil || !htmlDirFi.IsDir() {
 						os.MkdirAll(htmlDir, 0777)
@@ -743,8 +736,9 @@ func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
 
 					if p.Config.AutoJumpToHtml {
 						p.site.base.rmutex.RLock()
-						http.Redirect(w, r, p.site.Root+htmlFile[len(p.Config.AssetsDirectory):], http.StatusFound)
+						siteRoot := p.site.Root
 						p.site.base.rmutex.RUnlock()
+						http.Redirect(w, r, siteRoot+htmlFile[len(p.Config.AssetsDirectory):], http.StatusFound)
 					} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
 						htmlContent, err := ioutil.ReadFile(htmlFile)
 						if err == nil {
@@ -871,8 +865,8 @@ func (p *Page) handleRoute(i interface{}) {
 
 		p.setCurrentInfo(r.URL.Path)
 		p.Template = p.CurrentController + p.currentFileName
-		log.Debug("<Page.handleRoute> ", "p.Template:", p.Template)
 		p.site.base.mutex.Unlock()
+		log.Debug("<Page.handleRoute> ", "p.Template:", p.Template)
 
 		p.routeController(i, w, r)
 	})

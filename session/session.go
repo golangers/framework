@@ -51,26 +51,26 @@ func New(cookieName string, expires int, timerDuration string) *SessionManager {
 func (s *SessionManager) Get(rw http.ResponseWriter, req *http.Request) map[string]interface{} {
 	var sessionSign string
 
+	s.rmutex.RLock()
+	defer s.rmutex.RUnlock()
 	if c, err := req.Cookie(s.CookieName); err == nil {
 		sessionSign = c.Value
-		s.rmutex.RLock()
 		if sessionValue, ok := s.sessions[sessionSign]; ok {
-			s.rmutex.RUnlock()
 			return sessionValue[1]
 		}
 
-		s.rmutex.RUnlock()
 	}
 
-	s.mutex.Lock()
 	sessionSign = s.new(rw)
-	s.mutex.Unlock()
-
 	return s.sessions[sessionSign][1]
 }
 
 func (s *SessionManager) Set(rw http.ResponseWriter, req *http.Request) {
-	if c, err := req.Cookie(s.CookieName); err == nil {
+	s.rmutex.RLock()
+	CookieName := s.CookieName
+	s.rmutex.RUnlock()
+
+	if c, err := req.Cookie(CookieName); err == nil {
 		sessionSign := c.Value
 		s.rmutex.RLock()
 		lsess := len(s.sessions[sessionSign][1])
@@ -79,7 +79,7 @@ func (s *SessionManager) Set(rw http.ResponseWriter, req *http.Request) {
 		if lsess == 0 {
 			s.Clear(sessionSign)
 			bCookie := &http.Cookie{
-				Name:     s.CookieName,
+				Name:     CookieName,
 				Value:    "",
 				Path:     "/",
 				Expires:  time.Now().Add(-3600),
@@ -99,16 +99,22 @@ func (s *SessionManager) Len() int64 {
 
 func (s *SessionManager) new(rw http.ResponseWriter) string {
 	timeNano := time.Now().UnixNano()
+	s.rmutex.RLock()
+	CookieName := s.CookieName
 	sessionSign := s.sessionSign()
+	s.rmutex.RUnlock()
+
+	s.mutex.Lock()
 	s.sessions[sessionSign] = [2]map[string]interface{}{
 		map[string]interface{}{
 			"create": timeNano,
 		},
 		map[string]interface{}{},
 	}
+	s.mutex.Unlock()
 
 	bCookie := &http.Cookie{
-		Name:     s.CookieName,
+		Name:     CookieName,
 		Value:    url.QueryEscape(sessionSign),
 		Path:     "/",
 		HttpOnly: true,
