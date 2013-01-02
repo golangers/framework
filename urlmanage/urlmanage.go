@@ -201,8 +201,6 @@ func (u *UrlManage) clearRule() {
 }
 
 func (u *UrlManage) loadRule(rules string) {
-	u.mutex.RLock()
-	defer u.mutex.RUnlock()
 	for _, r := range strings.Split(rules, "\n") {
 		u.AddRule(r)
 	}
@@ -216,10 +214,11 @@ func (u *UrlManage) AddRule(r string) {
 func (u *UrlManage) ReWrite(rw http.ResponseWriter, req *http.Request) string {
 	out := req.URL.String()
 	u.mutex.RLock()
-	if u.manage {
+	manage := u.manage
+	u.mutex.RUnlock()
+	if manage {
 		out = u.doRule(rw, req)
 	}
-	u.mutex.RUnlock()
 
 	return out
 }
