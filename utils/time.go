@@ -1,37 +1,50 @@
 package utils
 
 import (
-	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type Time struct {
-	TimeFormat string
-	TimeZone   string
+	Layout string
+	Zone   string
 }
 
 func NewTime() *Time {
 	return &Time{
-		TimeFormat: "2006-01-02 15:04:05 +00:00",
-		TimeZone:   "+00:00",
+		Layout: "2006-01-02 15:04:05",
+		Zone:   "-07:00",
 	}
 }
 
-func (t *Time) GetTimeToStr(tm int64, fm ...string) string {
-	ti := time.Unix(tm, 0)
-	var format string
+func (t *Time) UnixToStr(n int64, layouts ...string) string {
+	layout := t.Layout
+	if len(layouts) > 0 && layouts[0] != "" {
+		layout = layouts[0]
+	}
 
-	if len(fm) < 1 {
-		format = "%04d-%02d-%02d %02d:%02d:%02d"
+	var ss, ns string
+	s := strconv.FormatInt(n, 10)
+	l := len(s)
+	if l > 10 {
+		ss = s[:10]
+		ns = s[10:]
+		//000000000
+		fillLen := 9 - len(ns)
+		ns = ns + strings.Repeat("0", fillLen)
 	} else {
-		format = fm[0]
+		ss = s[:10]
 	}
 
-	return fmt.Sprintf(format, ti.Year(), ti.Month(), ti.Day(), ti.Hour(), ti.Minute(), ti.Second())
+	si, _ := strconv.ParseInt(ss, 10, 64)
+	ni, _ := strconv.ParseInt(ns, 10, 64)
+	tm := time.Unix(si, ni)
+
+	return tm.Format(layout)
 }
 
-func (t *Time) GetStrToTime(s string) int64 {
-	s += " " + t.TimeZone
-	ti, _ := time.Parse(t.TimeFormat, s)
+func (t *Time) StrToUnix(s string) int64 {
+	ti, _ := time.Parse(t.Layout+" "+t.Zone, s)
 	return ti.Unix()
 }
