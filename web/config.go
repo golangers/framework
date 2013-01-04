@@ -26,8 +26,8 @@ type Config struct {
 	SupportUrlManage          bool                   `json:"SupportUrlManage"`
 	SessionType               string                 `json:"SessionType"`
 	RootStaticFiles           string                 `json:"RootStaticFiles"`
-	DefaultLanguage           string                 `json:"DefaultLanguage"`
 	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
+	DefaultLanguage           string                 `json:"DefaultLanguage"`
 	AutoGenerateHtml          bool                   `json:"AutoGenerateHtml"`
 	AutoGenerateHtmlCycleTime int64                  `json:"AutoGenerateHtmlCycleTime"`
 	AutoLoadStaticHtml        bool                   `json:"AutoLoadStaticHtml"`
@@ -68,8 +68,8 @@ func NewConfig() Config {
 		TemporaryDirectory:      "./tmp/",
 		AssetsDirectory:         "./assets/",
 		StaticDirectory:         "static/",
+		DefaultLocalePath:       "./config/locale/",
 		DefaultLanguage:         "zh-cn",
-		DefaultLocalePath:       "./locale/",
 		ThemeDirectory:          "theme/",
 		Theme:                   "default",
 		StaticCssDirectory:      "css/",
