@@ -207,4 +207,4 @@ Golanger 应用目录的命名规则（可根据自己需求自行变化）：
 
 */
 
-package golanger
+package documentation
