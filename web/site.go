@@ -1,7 +1,7 @@
 package web
 
 import (
-	"golanger.com/framework/log"
+	"golanger.com/log"
 	"io/ioutil"
 	"net/http"
 	"os"

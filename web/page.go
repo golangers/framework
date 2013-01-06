@@ -3,13 +3,13 @@ package web
 import (
 	"bytes"
 	"fmt"
-	"golanger.com/framework/cookiesession"
-	"golanger.com/framework/filesession"
-	"golanger.com/framework/i18n"
-	"golanger.com/framework/log"
-	"golanger.com/framework/session"
-	"golanger.com/framework/urlmanage"
-	"golanger.com/framework/validate"
+	"golanger.com/i18n"
+	"golanger.com/log"
+	"golanger.com/session/cookiesession"
+	"golanger.com/session/filesession"
+	"golanger.com/session/memorysession"
+	"golanger.com/urlmanage"
+	"golanger.com/validate"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -40,7 +40,7 @@ type Page struct {
 	ONCE_SESSION        interface{}
 	COOKIE_SESSION      map[string]interface{}
 	LANG                map[string]string
-	Session             *session.SessionManager
+	MemorySession       *memorysession.SessionManager
 	FileSession         *filesession.SessionManager
 	CookieSession       *cookiesession.SessionManager
 	I18n                *i18n.I18nManager
@@ -84,7 +84,7 @@ func NewPage(param PageParam) Page {
 			Func: template.FuncMap{},
 		},
 		MAX_FORM_SIZE: param.MaxFormSize,
-		Session:       session.New(param.CookieName, param.Expires, param.TimerDuration),
+		MemorySession: memorysession.New(param.CookieName, param.Expires, param.TimerDuration),
 		FileSession:   filesession.New(param.CookieName, param.Expires, param.SessionDir, param.TimerDuration),
 		CookieSession: cookiesession.New(param.CookieSessionName, param.CookieSessionKey),
 		I18n:          i18n.New(param.I18nName),
@@ -107,9 +107,9 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 		case "file":
 			p.SESSION = p.FileSession.Get(w, r)
 		case "memory":
-			p.SESSION = p.Session.Get(w, r)
+			p.SESSION = p.MemorySession.Get(w, r)
 		default:
-			p.SESSION = p.Session.Get(w, r)
+			p.SESSION = p.MemorySession.Get(w, r)
 		}
 
 		var ok bool
@@ -559,9 +559,9 @@ DO_ROUTER:
 		case "file":
 			ppc.FileSession.Set(ppc.SESSION, w, r)
 		case "memory":
-			ppc.Session.Set(w, r)
+			ppc.MemorySession.Set(w, r)
 		default:
-			ppc.Session.Set(w, r)
+			ppc.MemorySession.Set(w, r)
 		}
 	}
 
