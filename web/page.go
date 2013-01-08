@@ -452,7 +452,7 @@ func (p *Page) filterDoMethod(tpc reflect.Type, vpc reflect.Value, action string
 	}
 }
 
-func (p *Page) loadGeneratedHtml(w http.ResponseWriter, r *http.Request) bool {
+func (p *Page) loadGeneratedHtml(w http.ResponseWriter, r *http.Request) (b bool) {
 	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.SupportTemplate:", p.Config.SupportTemplate)
 	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.LoadStaticHtmlWithLogic:", p.Config.LoadStaticHtmlWithLogic)
 	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.AutoGenerateHtml:", p.Config.AutoGenerateHtml)
@@ -492,20 +492,14 @@ func (p *Page) loadGeneratedHtml(w http.ResponseWriter, r *http.Request) bool {
 				w.Header().Add("Last-Modified", htmlFi.ModTime().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 				w.Write(htmlContent)
 				return true
-			} else {
-				return false
 			}
-		} else {
-			return false
 		}
 	}
+
+	return
 }
 
 func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Request) {
-	if p.loadGeneratedHtml(w, r) {
-		return
-	}
-
 	pageOriController := p.GetController(p.currentPath)
 	rv := reflect.ValueOf(pageOriController)
 	rvw, rvr := reflect.ValueOf(w), reflect.ValueOf(r)
@@ -877,7 +871,9 @@ func (p *Page) handleRoute(i interface{}) {
 		p.site.base.mutex.Unlock()
 		log.Debug("<Page.handleRoute> ", "p.Template:", p.Template)
 
-		p.routeController(i, w, r)
+		if !p.loadGeneratedHtml(w, r) {
+			p.routeController(i, w, r)
+		}
 	})
 }
 
