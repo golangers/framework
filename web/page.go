@@ -452,7 +452,60 @@ func (p *Page) filterDoMethod(tpc reflect.Type, vpc reflect.Value, action string
 	}
 }
 
+func (p *Page) loadGeneratedHtml(w http.ResponseWriter, r *http.Request) bool {
+	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.SupportTemplate:", p.Config.SupportTemplate)
+	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.LoadStaticHtmlWithLogic:", p.Config.LoadStaticHtmlWithLogic)
+	log.Debug("<Page.loadGeneratedHtml> ", "p.Config.AutoGenerateHtml:", p.Config.AutoGenerateHtml)
+
+	if p.Config.SupportTemplate && !p.Config.LoadStaticHtmlWithLogic && p.Config.AutoGenerateHtml {
+		tplFi, tplErr := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Template)
+		if tplErr != nil {
+			log.Error("<Page.loadGeneratedHtml> ", tplErr)
+		} else {
+			p.site.base.rmutex.RLock()
+			tmplCache := p.site.GetTemplateCache(p.Template)
+			p.site.base.rmutex.RUnlock()
+			if tplFi.ModTime().Unix() > tmplCache.ModTime {
+				return false
+			}
+		}
+
+		htmlFile := ""
+		assetsHtmlDir := p.Config.AssetsDirectory + p.Config.HtmlDirectory
+		if strings.HasPrefix(p.Template, p.Config.IndexDirectory) {
+			htmlFile = assetsHtmlDir + strings.Replace(p.Template, p.Config.IndexDirectory, "", 1)
+		} else {
+			htmlFile = assetsHtmlDir + p.Template
+		}
+
+		if r.URL.RawQuery != "" {
+			htmlFile += "?" + r.URL.RawQuery
+		}
+
+		if htmlFi, htmlErr := os.Stat(htmlFile); htmlErr == nil {
+			if p.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
+			}
+
+			htmlContent, err := ioutil.ReadFile(htmlFile)
+			if err == nil {
+				w.Header().Add("Content-Length", strconv.FormatInt(htmlFi.Size(), 10))
+				w.Header().Add("Last-Modified", htmlFi.ModTime().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
+				w.Write(htmlContent)
+				return true
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+}
+
 func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Request) {
+	if p.loadGeneratedHtml(w, r) {
+		return
+	}
+
 	pageOriController := p.GetController(p.currentPath)
 	rv := reflect.ValueOf(pageOriController)
 	rvw, rvr := reflect.ValueOf(w), reflect.ValueOf(r)
@@ -473,57 +526,13 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 	}
 
 	vppc := vapc.FieldByName("Page")
+	tpc := vpc.Type()
 	ppc := vppc.Addr().Interface().(*Page)
-	log.Debug("<Page.routeController> ", "ppc.Config.LoadStaticHtmlWithLogic:", ppc.Config.LoadStaticHtmlWithLogic)
-	log.Debug("<Page.routeController> ", "ppc.Config.AutoGenerateHtml:", ppc.Config.AutoGenerateHtml)
 
-	if !ppc.Config.LoadStaticHtmlWithLogic && !ppc.Document.GenerateHtml && ppc.Config.AutoGenerateHtml {
-		tplFi, tplErr := os.Stat(ppc.Config.TemplateDirectory + ppc.Config.ThemeDirectory + ppc.Template)
-		if tplErr != nil {
-			log.Error("<Page.routeController> ", tplErr)
-		} else {
-			ppc.site.base.rmutex.RLock()
-			tmplCache := ppc.site.GetTemplateCache(ppc.Template)
-			ppc.site.base.rmutex.RUnlock()
-			if tplFi.ModTime().Unix() > tmplCache.ModTime {
-				goto DO_ROUTER
-			}
-		}
-
-		htmlFile := ""
-		assetsHtmlDir := ppc.Config.AssetsDirectory + ppc.Config.HtmlDirectory
-		if strings.HasPrefix(ppc.Template, ppc.Config.IndexDirectory) {
-			htmlFile = assetsHtmlDir + strings.Replace(ppc.Template, ppc.Config.IndexDirectory, "", 1)
-		} else {
-			htmlFile = assetsHtmlDir + ppc.Template
-		}
-
-		if r.URL.RawQuery != "" {
-			htmlFile += "?" + r.URL.RawQuery
-		}
-
-		if htmlFi, htmlErr := os.Stat(htmlFile); htmlErr == nil {
-			if ppc.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
-				goto DO_ROUTER
-			}
-
-			htmlContent, err := ioutil.ReadFile(htmlFile)
-			if err == nil {
-				w.Header().Add("Content-Length", strconv.FormatInt(htmlFi.Size(), 10))
-				w.Header().Add("Last-Modified", htmlFi.ModTime().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
-				w.Write(htmlContent)
-				return
-			} else {
-				goto DO_ROUTER
-			}
-		} else {
-			goto DO_ROUTER
-		}
-
+	if ppc.Config.AutoGenerateHtml {
+		ppc.Document.GenerateHtml = true
 	}
 
-DO_ROUTER:
-	tpc := vpc.Type()
 	if ppc.CurrentAction != "Init" {
 		ppc.callMethod(tpc, vpc, "Init", rvr, rvw)
 	}
