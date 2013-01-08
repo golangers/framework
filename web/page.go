@@ -572,7 +572,7 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 		ppc.CookieSession.Set(ppc.COOKIE_SESSION, w, r)
 	}
 
-	if ppc.Config.SupportTemplate {
+	if !(p.Document.Close || p.Document.Hide) && ppc.Config.SupportTemplate {
 		ppc.setStaticDocument()
 		ppc.routeTemplate(w, r)
 	}
@@ -634,126 +634,120 @@ func (p *Page) setStaticDocument() {
 }
 
 func (p *Page) routeTemplate(w http.ResponseWriter, r *http.Request) {
-	if p.Config.AutoGenerateHtml {
-		p.Document.GenerateHtml = true
-	}
-
-	if p.Document.Close == false && p.Document.Hide == false {
-		if globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory); err != nil {
-			log.Error("<Page.routeTemplate> ", err)
-		} else {
-			if globalTplCache := p.site.GetTemplateCache("globalTpl"); globalTplCache.ModTime > 0 {
-				if globalTplFi.ModTime().Unix() > globalTplCache.ModTime {
-					p.setGlobalTpl(globalTplFi.ModTime().Unix(), true)
-				}
+	if globalTplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Config.TemplateGlobalDirectory); err != nil {
+		log.Error("<Page.routeTemplate> ", err)
+	} else {
+		if globalTplCache := p.site.GetTemplateCache("globalTpl"); globalTplCache.ModTime > 0 {
+			if globalTplFi.ModTime().Unix() > globalTplCache.ModTime {
+				p.setGlobalTpl(globalTplFi.ModTime().Unix(), true)
 			}
 		}
+	}
 
-		if tplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Template); err != nil {
-			p.site.base.rmutex.RLock()
-			tmplCache := p.site.GetTemplateCache(p.Template)
-			if tmplCache.ModTime > 0 {
-				p.site.base.mutex.Lock()
-				p.DelTemplateCache(p.Template)
-				p.site.base.mutex.Unlock()
-				log.Info("<Page.routeTemplate> ", "Delete Template Cache:", p.Template)
-			}
-			p.site.base.rmutex.RUnlock()
+	if tplFi, err := os.Stat(p.Config.TemplateDirectory + p.Config.ThemeDirectory + p.Template); err != nil {
+		p.site.base.rmutex.RLock()
+		tmplCache := p.site.GetTemplateCache(p.Template)
+		if tmplCache.ModTime > 0 {
+			p.site.base.mutex.Lock()
+			p.DelTemplateCache(p.Template)
+			p.site.base.mutex.Unlock()
+			log.Info("<Page.routeTemplate> ", "Delete Template Cache:", p.Template)
+		}
+		p.site.base.rmutex.RUnlock()
+	} else {
+		p.site.base.rmutex.RLock()
+		tmplCache := p.site.GetTemplateCache(p.Template)
+
+		if tplFi.ModTime().Unix() > tmplCache.ModTime {
+			p.site.base.mutex.Lock()
+			p.SetTemplateCache(p.Template, p.Config.TemplateDirectory+p.Config.ThemeDirectory+p.Template)
+			p.site.base.mutex.Unlock()
+
+			tmplCache = p.site.GetTemplateCache(p.Template)
+		}
+
+		globalTemplate, _ := p.site.globalTemplate.Clone()
+		p.site.base.rmutex.RUnlock()
+		pageTemplate, err := globalTemplate.New(filepath.Base(p.Template)).Parse(tmplCache.Content)
+
+		if err != nil {
+			log.Error("<Page.routeTemplate> ", err)
+			w.Write([]byte(fmt.Sprint(err)))
 		} else {
-			p.site.base.rmutex.RLock()
-			tmplCache := p.site.GetTemplateCache(p.Template)
-
-			if tplFi.ModTime().Unix() > tmplCache.ModTime {
-				p.site.base.mutex.Lock()
-				p.SetTemplateCache(p.Template, p.Config.TemplateDirectory+p.Config.ThemeDirectory+p.Template)
-				p.site.base.mutex.Unlock()
-
-				tmplCache = p.site.GetTemplateCache(p.Template)
+			templateVar := map[string]interface{}{
+				"G":        p.GET,
+				"P":        p.POST,
+				"S":        p.SESSION,
+				"O_S":      p.ONCE_SESSION,
+				"C":        p.COOKIE,
+				"CS":       p.COOKIE_SESSION,
+				"D":        p.Document,
+				"L":        p.LANG,
+				"Config":   p.Config.M,
+				"Template": p.Template,
 			}
 
-			globalTemplate, _ := p.site.globalTemplate.Clone()
+			p.site.base.rmutex.RLock()
+			templateVar["Siteroot"] = p.site.Root
+			templateVar["Version"] = p.site.Version
 			p.site.base.rmutex.RUnlock()
-			pageTemplate, err := globalTemplate.New(filepath.Base(p.Template)).Parse(tmplCache.Content)
 
-			if err != nil {
-				log.Error("<Page.routeTemplate> ", err)
-				w.Write([]byte(fmt.Sprint(err)))
+			if !p.Document.GenerateHtml {
+				err := pageTemplate.Execute(w, templateVar)
+				if err != nil {
+					log.Error("<Page.routeTemplate> ", err)
+					w.Write([]byte(fmt.Sprint(err)))
+				}
 			} else {
-				templateVar := map[string]interface{}{
-					"G":        p.GET,
-					"P":        p.POST,
-					"S":        p.SESSION,
-					"O_S":      p.ONCE_SESSION,
-					"C":        p.COOKIE,
-					"CS":       p.COOKIE_SESSION,
-					"D":        p.Document,
-					"L":        p.LANG,
-					"Config":   p.Config.M,
-					"Template": p.Template,
+				htmlFile := ""
+				assetsHtmlDir := p.Config.AssetsDirectory + p.Config.HtmlDirectory
+				if strings.HasPrefix(p.Template, p.Config.IndexDirectory) {
+					htmlFile = assetsHtmlDir + strings.Replace(p.Template, p.Config.IndexDirectory, "", 1)
+				} else {
+					htmlFile = assetsHtmlDir + p.Template
 				}
 
-				p.site.base.rmutex.RLock()
-				templateVar["Siteroot"] = p.site.Root
-				templateVar["Version"] = p.site.Version
-				p.site.base.rmutex.RUnlock()
+				if r.URL.RawQuery != "" {
+					htmlFile += "?" + r.URL.RawQuery
+				}
 
-				if !p.Document.GenerateHtml {
+				htmlDir := filepath.Dir(htmlFile)
+				if htmlDirFi, err := os.Stat(htmlDir); err != nil || !htmlDirFi.IsDir() {
+					os.MkdirAll(htmlDir, 0777)
+					log.Info("<Page.routeTemplate> ", "MkdirAll:", htmlDir)
+				}
+
+				htmlFi, htmlErr := os.Stat(htmlFile)
+				if p.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
+					if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err != nil {
+						log.Error("<Page.routeTemplate> ", err)
+					} else {
+						if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
+							p.site.base.rmutex.RLock()
+							templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
+							p.site.base.rmutex.RUnlock()
+						}
+
+						pageTemplate.Execute(file, templateVar)
+					}
+				}
+
+				if p.Config.AutoJumpToHtml {
+					p.site.base.rmutex.RLock()
+					siteRoot := p.site.Root
+					p.site.base.rmutex.RUnlock()
+					http.Redirect(w, r, siteRoot+htmlFile[len(p.Config.AssetsDirectory):], http.StatusFound)
+				} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
+					htmlContent, err := ioutil.ReadFile(htmlFile)
+					if err == nil {
+						w.Write(htmlContent)
+					} else {
+						log.Error("<Page.routeTemplate> ", err)
+					}
+				} else {
 					err := pageTemplate.Execute(w, templateVar)
 					if err != nil {
 						log.Error("<Page.routeTemplate> ", err)
-						w.Write([]byte(fmt.Sprint(err)))
-					}
-				} else {
-					htmlFile := ""
-					assetsHtmlDir := p.Config.AssetsDirectory + p.Config.HtmlDirectory
-					if strings.HasPrefix(p.Template, p.Config.IndexDirectory) {
-						htmlFile = assetsHtmlDir + strings.Replace(p.Template, p.Config.IndexDirectory, "", 1)
-					} else {
-						htmlFile = assetsHtmlDir + p.Template
-					}
-
-					if r.URL.RawQuery != "" {
-						htmlFile += "?" + r.URL.RawQuery
-					}
-
-					htmlDir := filepath.Dir(htmlFile)
-					if htmlDirFi, err := os.Stat(htmlDir); err != nil || !htmlDirFi.IsDir() {
-						os.MkdirAll(htmlDir, 0777)
-						log.Info("<Page.routeTemplate> ", "MkdirAll:", htmlDir)
-					}
-
-					htmlFi, htmlErr := os.Stat(htmlFile)
-					if p.checkHtmlDoWrite(tplFi, htmlFi, htmlErr) {
-						if file, err := os.OpenFile(htmlFile, os.O_CREATE|os.O_WRONLY, 0777); err != nil {
-							log.Error("<Page.routeTemplate> ", err)
-						} else {
-							if p.Config.AutoJumpToHtml || p.Config.ChangeSiteRoot {
-								p.site.base.rmutex.RLock()
-								templateVar["Siteroot"] = p.site.Root + p.Config.HtmlDirectory
-								p.site.base.rmutex.RUnlock()
-							}
-
-							pageTemplate.Execute(file, templateVar)
-						}
-					}
-
-					if p.Config.AutoJumpToHtml {
-						p.site.base.rmutex.RLock()
-						siteRoot := p.site.Root
-						p.site.base.rmutex.RUnlock()
-						http.Redirect(w, r, siteRoot+htmlFile[len(p.Config.AssetsDirectory):], http.StatusFound)
-					} else if p.Config.AutoLoadStaticHtml && htmlFi != nil && htmlErr == nil {
-						htmlContent, err := ioutil.ReadFile(htmlFile)
-						if err == nil {
-							w.Write(htmlContent)
-						} else {
-							log.Error("<Page.routeTemplate> ", err)
-						}
-					} else {
-						err := pageTemplate.Execute(w, templateVar)
-						if err != nil {
-							log.Error("<Page.routeTemplate> ", err)
-						}
 					}
 				}
 			}
