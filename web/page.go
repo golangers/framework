@@ -242,7 +242,7 @@ func (p *Page) setGlobalTpl(globalTplModTime int64, reset bool) {
 
 func (p *Page) reset(update bool) {
 	p.setLog(p.Config.SupportLog, p.Config.LogWriteTo, p.Config.LogLevel)
-	p.setUrlManage(p.Config.SupportUrlManage, p.Config.UrlManageRule)
+	p.setUrlManage(p.Config.SupportUrlManage, p.Config.SupportUrlManageWithCache, p.Config.UrlManageRule)
 
 	if update {
 		if p.site.supportSession != p.Config.SupportSession {
