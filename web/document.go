@@ -9,6 +9,7 @@ type Document struct {
 	GenerateHtml       bool
 	Static             string
 	Theme              string
+	Attr               map[string]string
 	Css                map[string]string
 	Js                 map[string]string
 	Img                map[string]string
@@ -21,8 +22,5 @@ type Document struct {
 	Hide               bool
 	Func               template.FuncMap
 	Title              string
-	Subtitle           string
-	Header             string
 	Body               interface{}
-	Footer             string
 }
