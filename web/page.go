@@ -131,8 +131,8 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 		p.LANG = func() map[string]string {
 			if p.TARGET_LANG == "" {
 				p.TARGET_LANG = strings.TrimSpace(r.Header.Get("Accept-Language"))
-				if i := strings.Index(l, ","); i != -1 {
-					p.TARGET_LANG = l[:i]
+				if i := strings.Index(p.TARGET_LANG, ","); i != -1 {
+					p.TARGET_LANG = p.TARGET_LANG[:i]
 				}
 			}
 
