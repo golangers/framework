@@ -40,6 +40,7 @@ type Page struct {
 	ONCE_SESSION        interface{}
 	COOKIE_SESSION      map[string]interface{}
 	LANG                map[string]string
+	TARGET_LANG         string
 	MemorySession       *memorysession.SessionManager
 	FileSession         *filesession.SessionManager
 	CookieSession       *cookiesession.SessionManager
@@ -78,6 +79,7 @@ func NewPage(param PageParam) Page {
 		Controller: map[string]interface{}{},
 		Config:     NewConfig(),
 		Document: Document{
+			Attr: map[string]string{},
 			Css:  map[string]string{},
 			Js:   map[string]string{},
 			Img:  map[string]string{},
@@ -127,12 +129,14 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 
 	if p.site.supportI18n {
 		p.LANG = func() map[string]string {
-			l := strings.TrimSpace(r.Header.Get("Accept-Language"))
-			if i := strings.Index(l, ","); i != -1 {
-				l = l[:i]
+			if p.TARGET_LANG == "" {
+				p.TARGET_LANG = strings.TrimSpace(r.Header.Get("Accept-Language"))
+				if i := strings.Index(l, ","); i != -1 {
+					p.TARGET_LANG = l[:i]
+				}
 			}
 
-			return p.I18n.Lang(l)
+			return p.I18n.Lang(p.TARGET_LANG)
 		}()
 	}
 
