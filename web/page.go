@@ -104,6 +104,9 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 	p.GET = p.site.base.getHttpGet(r)
 	p.POST = p.site.base.getHttpPost(r, p.MAX_FORM_SIZE)
 	p.COOKIE = p.site.base.getHttpCookie(r)
+}
+
+func (p *Page) initModule(w http.ResponseWriter, r *http.Request) {
 	if p.site.supportSession {
 		switch p.Config.SessionType {
 		case "file":
@@ -129,6 +132,8 @@ func (p *Page) Init(w http.ResponseWriter, r *http.Request) {
 
 	if p.site.supportI18n {
 		p.LANG = func() map[string]string {
+			log.Debug("<Page.Init> ", `p.TARGET_LANG: `, p.TARGET_LANG)
+
 			if p.TARGET_LANG == "" {
 				p.TARGET_LANG = strings.TrimSpace(r.Header.Get("Accept-Language"))
 				if i := strings.Index(p.TARGET_LANG, ","); i != -1 {
@@ -534,6 +539,8 @@ func (p *Page) routeController(i interface{}, w http.ResponseWriter, r *http.Req
 	if ppc.CurrentAction != "Init" {
 		ppc.callMethod(tpc, vpc, "Init", rvr, rvw)
 	}
+
+	ppc.initModule(w, r)
 
 	if _, ok := tpc.MethodByName(ppc.CurrentAction); ok && ppc.filterMethod(ppc.CurrentAction) {
 		ppc.filterDoMethod(tpc, vpc, "Before_", rvr, rvw)
