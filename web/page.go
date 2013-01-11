@@ -317,7 +317,7 @@ func (p *Page) reset(update bool) {
 	}
 }
 
-func (p *Page) setUrlManage(manage bool, rules []string) {
+func (p *Page) setUrlManage(manage, cache bool, rules []string) {
 	if !manage {
 		p.UrlManage.Stop()
 	} else {
@@ -325,6 +325,10 @@ func (p *Page) setUrlManage(manage bool, rules []string) {
 			p.UrlManage.Stop()
 		} else {
 			p.UrlManage.Start()
+			if cache == false {
+				p.UrlManage.SetCache(cache)
+			}
+
 			ruleContent := strings.Join(rules, "\n")
 			p.UrlManage.LoadRule(ruleContent, true)
 		}

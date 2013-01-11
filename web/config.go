@@ -24,6 +24,7 @@ type Config struct {
 	SupportI18n               bool                   `json:"SupportI18n"`
 	SupportStatic             bool                   `json:"SupportStatic"`
 	SupportUrlManage          bool                   `json:"SupportUrlManage"`
+	SupportUrlManageWithCache bool                   `json:"SupportUrlManageWithCache"`
 	SessionType               string                 `json:"SessionType"`
 	RootStaticFiles           string                 `json:"RootStaticFiles"`
 	DefaultLocalePath         string                 `json:"DefaultLocalePath"`
@@ -61,30 +62,31 @@ type Config struct {
 
 func NewConfig() Config {
 	return Config{
-		LogWriteTo:              "console",
-		SessionType:             "memory",
-		RootStaticFiles:         "favicon.ico",
-		TemplateDirectory:       "./view/",
-		TemporaryDirectory:      "./tmp/",
-		AssetsDirectory:         "./assets/",
-		StaticDirectory:         "static/",
-		DefaultLocalePath:       "./config/locale/",
-		DefaultLanguage:         "zh-cn",
-		ThemeDirectory:          "theme/",
-		Theme:                   "default",
-		StaticCssDirectory:      "css/",
-		StaticJsDirectory:       "js/",
-		StaticImgDirectory:      "img/",
-		HtmlDirectory:           "html/",
-		UploadDirectory:         "upload/",
-		TemplateGlobalDirectory: "_global/",
-		TemplateGlobalFile:      "*",
-		IndexDirectory:          "index/",
-		IndexPage:               "index.html",
-		SiteRoot:                "/",
-		Environment:             map[string]string{},
-		Database:                map[string]string{},
-		UrlManageRule:           []string{},
+		SupportUrlManageWithCache: true,
+		LogWriteTo:                "console",
+		SessionType:               "memory",
+		RootStaticFiles:           "favicon.ico",
+		TemplateDirectory:         "./view/",
+		TemporaryDirectory:        "./tmp/",
+		AssetsDirectory:           "./assets/",
+		StaticDirectory:           "static/",
+		DefaultLocalePath:         "./config/locale/",
+		DefaultLanguage:           "zh-cn",
+		ThemeDirectory:            "theme/",
+		Theme:                     "default",
+		StaticCssDirectory:        "css/",
+		StaticJsDirectory:         "js/",
+		StaticImgDirectory:        "img/",
+		HtmlDirectory:             "html/",
+		UploadDirectory:           "upload/",
+		TemplateGlobalDirectory:   "_global/",
+		TemplateGlobalFile:        "*",
+		IndexDirectory:            "index/",
+		IndexPage:                 "index.html",
+		SiteRoot:                  "/",
+		Environment:               map[string]string{},
+		Database:                  map[string]string{},
+		UrlManageRule:             []string{},
 	}
 }
 
