@@ -1,13 +1,9 @@
 package web
 
 import (
-	"bytes"
-	"encoding/json"
 	"golanger.com/config"
 	"golanger.com/log"
-	"io/ioutil"
 	"os"
-	"regexp"
 )
 
 type Config struct {
@@ -86,9 +82,9 @@ func NewConfig() Config {
 	}
 }
 
-func (c *Config) Init() Config {
+func (c Config) Init() Config {
 	c.preSet()
-	return *c
+	return c
 }
 
 func (c *Config) preSet() {
@@ -101,11 +97,11 @@ func (c *Config) preSet() {
 
 func (c *Config) set(configDir string, configLastModTime int64) {
 	c.configDir = configDir
-	c.configLastModTime = dataFi.ModTime().Unix()
+	c.configLastModTime = configLastModTime
 }
 
 func (c *Config) LoadData(data string) {
-	conf := config.Data(data).Load(c)
+	config.Data(data).Load(c)
 	c.preSet()
 }
 
