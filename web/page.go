@@ -77,7 +77,7 @@ func NewPage(param PageParam) Page {
 			Version:       strconv.Itoa(time.Now().Year()),
 		},
 		Controller: map[string]interface{}{},
-		Config:     NewConfig(),
+		Config:     NewConfig().Init(),
 		Document: Document{
 			Attr: map[string]string{},
 			Css:  map[string]string{},

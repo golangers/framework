@@ -3,15 +3,11 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"golanger.com/config"
 	"golanger.com/log"
 	"io/ioutil"
 	"os"
 	"regexp"
-)
-
-var (
-	regexpNote  *regexp.Regexp = regexp.MustCompile(`#.*`)
-	regexpSpace *regexp.Regexp = regexp.MustCompile(`[\n\v\f\r]*`)
 )
 
 type Config struct {
@@ -90,61 +86,12 @@ func NewConfig() Config {
 	}
 }
 
-func (c *Config) format(configPath string) []byte {
-	data, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		log.Fatal("<Config.format> error: ", err)
-	}
-
-	return bytes.TrimSpace(regexpSpace.ReplaceAll(regexpNote.ReplaceAll(data, []byte(``)), []byte(``)))
+func (c *Config) Init() Config {
+	c.preSet()
+	return *c
 }
 
-func (c *Config) readDir(configDir string) []byte {
-	fis, err := ioutil.ReadDir(configDir)
-	if err != nil {
-		log.Fatal("<Config.readDir> error: ", err)
-	}
-
-	lfis := len(fis)
-	chContent := make(chan []byte, lfis)
-
-	for _, fi := range fis {
-		fiName := fi.Name()
-		if fi.IsDir() || fiName[0] == '.' {
-			lfis--
-			continue
-		}
-
-		go func(chContent chan []byte, configPath string) {
-			chContent <- c.format(configPath)
-		}(chContent, configDir+"/"+fiName)
-	}
-
-	contentBuf := bytes.NewBufferString(`{`)
-	for i := 1; i <= lfis; i++ {
-		content := <-chContent
-		if len(content) == 0 {
-			continue
-		}
-
-		contentBuf.Write(content)
-		if i < lfis {
-			contentBuf.WriteString(",")
-		}
-	}
-
-	contentBuf.WriteString(`}`)
-
-	return contentBuf.Bytes()
-}
-
-func (c *Config) load(data []byte) {
-	err := json.Unmarshal(data, c)
-	if err != nil {
-		log.Debug("<Config.Load> jsonData: ", string(data))
-		log.Fatal("<Config.Load> error: ", err)
-	}
-
+func (c *Config) preSet() {
 	c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
 	c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
 	c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
@@ -152,16 +99,25 @@ func (c *Config) load(data []byte) {
 	c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
 }
 
+func (c *Config) set(configDir string, configLastModTime int64) {
+	c.configDir = configDir
+	c.configLastModTime = dataFi.ModTime().Unix()
+}
+
 func (c *Config) LoadData(data string) {
-	c.load([]byte("{" + data + "}"))
+	conf := config.Data(data).Load(c)
+	c.preSet()
 }
 
 func (c *Config) Load(configDir string) {
-	data := c.readDir(configDir)
-	c.load(data)
-	c.configDir = configDir
-	dataFi, _ := os.Stat(c.configDir)
-	c.configLastModTime = dataFi.ModTime().Unix()
+	conf := config.Dir(configDir).Load(c)
+	configDir = conf.Target()
+	if dataFi, err := os.Stat(configDir); err == nil {
+		c.set(configDir, dataFi.ModTime().Unix())
+		c.preSet()
+	} else {
+		log.Fatal("<Config.Load> error:", err)
+	}
 }
 
 func (c *Config) Reload() bool {
@@ -173,16 +129,9 @@ func (c *Config) Reload() bool {
 
 	if dataFi, err := os.Stat(configDir); err == nil {
 		if dataFi.ModTime().Unix() > c.configLastModTime {
-			data := c.readDir(configDir)
-			*c = NewConfig()
-			json.Unmarshal(data, c)
-			c.configDir = configDir
-			c.configLastModTime = dataFi.ModTime().Unix()
-			c.UploadDirectory = c.AssetsDirectory + c.StaticDirectory + c.UploadDirectory
-			c.ThemeDirectory = c.ThemeDirectory + c.Theme + "/"
-			c.StaticCssDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticCssDirectory
-			c.StaticJsDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticJsDirectory
-			c.StaticImgDirectory = c.AssetsDirectory + c.StaticDirectory + c.ThemeDirectory + c.StaticImgDirectory
+			cm := NewConfig()
+			cm.Load(configDir)
+			*c = cm
 			b = true
 		}
 	}
